@@ -166,22 +166,3 @@ jobs:
 
       - name: Run dialyzer
         run: mix dialyzer
-
-  tf-validate:
-    name: Terraform validation
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: "0.13.7"
-      - name: Check out code
-        uses: actions/checkout@v2
-      - run: |
-          cd deploy/analytex
-          terraform init --backend=false
-          terraform validate
-      - run: |
-          cd deploy/bridge
-          terraform init --backend=false
-          terraform validate
