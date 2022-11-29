@@ -30,7 +30,23 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  def to_property(property),
+  @doc """
+  Get client info
+  """
+  @spec get_client_info(String.t(), String.t()) :: {:ok,list()} | {:error,map()}
+  def get_client_info(client_code, refresh_token) do
+    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
+
+    API.request(
+      :get,
+      "/account-info/v3/details",
+      nil,
+      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+    )
+    |> Helpers.normalize_api_response()
+  end
+
+  defp to_property(property),
     do: %{
       name: property["name"],
       label: property["label"],
