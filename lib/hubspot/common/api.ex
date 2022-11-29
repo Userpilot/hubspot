@@ -4,7 +4,6 @@ defmodule Hubspot.Common.API do
   require Logger
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
-    IO.inspect(Path.join(config(:http_api), url))
     opts = Keyword.merge([receive_timeout: 3_000], opts)
 
     case :timer.tc(&do_send_request/5, [type, url, body, headers, opts]) do
