@@ -3,8 +3,6 @@ defmodule Hubspot.MixProject do
 
   require Logger
 
-  @default_version "1.0.0"
-
   def project do
     [
       app: :hubspot,
