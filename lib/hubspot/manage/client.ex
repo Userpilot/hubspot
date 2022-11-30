@@ -33,7 +33,7 @@ defmodule Hubspot.Manage.Client do
   @doc """
   Get client info
   """
-  @spec get_client_info(String.t(), String.t()) :: {:ok,list()} | {:error,map()}
+  @spec get_client_info(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def get_client_info(client_code, refresh_token) do
     {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
 
