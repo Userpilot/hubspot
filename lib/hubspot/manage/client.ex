@@ -14,7 +14,7 @@ defmodule Hubspot.Manage.Client do
   @spec list_custom_properties(String.t(), String.t(), :contact | :company) ::
           {:ok, list()} | {:error, map()}
   def list_custom_properties(client_code, refresh_token, object_type)
-      when object_type in [:contact, :property] do
+      when object_type in [:contact, :company] do
     {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
 
     API.request(
