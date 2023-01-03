@@ -39,15 +39,17 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_client_info(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def get_client_info(client_code, refresh_token) do
-    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
-
-    API.request(
-      :get,
-      "/account-info/v3/details",
-      nil,
-      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-    )
-    |> Helpers.normalize_api_response()
+    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :get,
+        "/account-info/v3/details",
+        nil,
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
+      |> Helpers.normalize_api_response()
+    else
+      {:not_found, reason} -> {:error,reason}
+    end
   end
 
   @doc """
@@ -57,7 +59,7 @@ defmodule Hubspot.Manage.Client do
   @spec send_event(String.t(), String.t(),String.t(),map(),keyword()) :: {:ok, map()} | {:error, map()}
   def send_event(client_code, refresh_token,template_id,params, object_id: object_id) do
 
-    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
+    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
 
     API.request(
       :post,
@@ -70,11 +72,14 @@ defmodule Hubspot.Manage.Client do
       [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
     )
     |> Helpers.normalize_api_response()
+    else
+      {:not_found, reason} -> {:error,reason}
+    end
   end
 
   def send_event(client_code, refresh_token,template_id,params, email: email) do
 
-    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
+    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
 
     API.request(
       :post,
@@ -87,7 +92,11 @@ defmodule Hubspot.Manage.Client do
       [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
     )
     |> Helpers.normalize_api_response()
+    else
+      {:not_found, reason} -> {:error,reason}
+    end
   end
+
   defp to_property(property),
     do: %{
       name: property["name"],
