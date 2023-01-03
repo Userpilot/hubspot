@@ -19,7 +19,7 @@ defmodule Hubspot.Manage.Client do
 
     API.request(
       :get,
-      "crm/v3/properties/#{Atom.to_string(object_type)}",
+      "crm/v3/properties/#{object_type}",
       nil,
       [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
     )
@@ -46,6 +46,44 @@ defmodule Hubspot.Manage.Client do
     |> Helpers.normalize_api_response()
   end
 
+  @doc """
+  Send a hubspot event to the specified event template id
+  you can either use object_id or email as the contact identifier
+  """
+  @spec send_event(String.t(), String.t(),String.t(),map(),keyword()) :: {:ok, map()} | {:error, map()}
+  def send_event(client_code, refresh_token,template_id,params, object_id: object_id) do
+
+    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
+
+    API.request(
+      :post,
+      "/crm/v3/timeline/events",
+      Jason.encode!(%{
+        eventTemplateId: template_id,
+        objectId: object_id,
+        tokens: params
+      }),
+      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+    )
+    |> Helpers.normalize_api_response()
+  end
+
+  def send_event(client_code, refresh_token,template_id,params, email: email) do
+
+    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
+
+    API.request(
+      :post,
+      "/crm/v3/timeline/events",
+      Jason.encode!(%{
+        eventTemplateId: template_id,
+        email: email,
+        tokens: params
+      }),
+      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+    )
+    |> Helpers.normalize_api_response()
+  end
   defp to_property(property),
     do: %{
       name: property["name"],

@@ -17,7 +17,7 @@ defmodule Hubspot.Manage.Application do
   """
   @spec list_app_properties() :: {:ok, list()} | {:error, map()}
   def list_app_properties() do
-    validate_app_credentials()
+    {:ok} = validate_app_credentials()
 
     API.request(
       :get,
@@ -68,14 +68,16 @@ defmodule Hubspot.Manage.Application do
 
   # Make sure env variables provided
   defp validate_app_credentials() do
-    if !config(:app_id) || !config(:api_key),
-      do: {:error, "Hubspot App credentials not provided(app_id and api_key)"}
+    if !config(:app_id) || !config(:api_key) do
+      {:error, "Hubspot App credentials not provided(app_id and api_key)"}
+    else
+      {:ok}
+    end
   end
 
   defp filter_property_changes(subscriptions) do
-    Enum.filter(subscriptions, fn subscription ->
-      subscription["eventType"] == "contact.propertyChange"
-    end)
+    subscriptions
+    |> Enum.filter(&(&1["eventType"] == "contact.propertyChange"))
     |> Enum.map(& &1["propertyName"])
   end
 end

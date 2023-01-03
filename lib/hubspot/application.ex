@@ -6,8 +6,6 @@ defmodule Hubspot.Application do
     children = [
       {Cachex, name: :hubspot_cache},
       {Finch, name: Hubspot.Common.API}
-      # Starts a worker by calling: Hubspot.Worker.start_link(arg)
-      # {Hubspot.Worker, arg}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
