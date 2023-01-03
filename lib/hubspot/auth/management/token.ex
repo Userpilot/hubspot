@@ -7,6 +7,7 @@ defmodule Hubspot.Auth.Manage.Token do
   @ttl :timer.seconds(1_800)
 
   # Hubspot clients are identified by their code(returned after initial authentication flow)
+  @spec get_client_access_token(any, any) :: {:not_found, any} | {:ok, any}
   def get_client_access_token(client_code, refresh_token) do
     Cachex.fetch(:hubspot_cache, client_code, fn key ->
       Logger.info(

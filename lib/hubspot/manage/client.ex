@@ -15,20 +15,24 @@ defmodule Hubspot.Manage.Client do
           {:ok, list()} | {:error, map()}
   def list_custom_properties(client_code, refresh_token, object_type)
       when object_type in [:contact, :company] do
-    {:ok, token} = Token.get_client_access_token(client_code, refresh_token)
-
-    API.request(
-      :get,
-      "crm/v3/properties/#{object_type}",
-      nil,
-      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-    )
-    |> Helpers.normalize_api_response()
-    |> case do
-      {:ok, body} -> {:ok, Enum.map(body["results"], &to_property/1)}
-      {:error, body} -> {:error, body}
-    end
+        with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+          API.request(
+          :get,
+          "crm/v3/properties/#{object_type}",
+          nil,
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          )
+          |> Helpers.normalize_api_response()
+          |> case do
+            {:ok, body} -> {:ok, Enum.map(body["results"], &to_property/1)}
+            {:error, body} -> {:error, body}
+          end
+        else
+          {:not_found, reason} -> {:error,reason}
+        end
   end
+
+  def list_custom_properties(_client_code,_refresh_token,_object_type), do: {:error, "only :contact or :company objects are supported"}
 
   @doc """
   Get client info
