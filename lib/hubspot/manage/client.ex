@@ -14,8 +14,9 @@ defmodule Hubspot.Manage.Client do
           {:ok, list()} | {:error, map()}
   def list_custom_properties(client_code, refresh_token, object_type)
       when object_type in [:contact, :company] do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
-      API.request(
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} -> API.request(
         :get,
         "crm/v3/properties/#{object_type}",
         nil,
@@ -28,7 +29,6 @@ defmodule Hubspot.Manage.Client do
         {:error, body} ->
           {:error, body}
       end
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end
@@ -41,14 +41,15 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_client_info(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def get_client_info(client_code, refresh_token) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} ->
       API.request(
         :get,
         "/account-info/v3/details",
         nil,
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end
@@ -60,7 +61,8 @@ defmodule Hubspot.Manage.Client do
   @spec send_event(Atom.t(), String.t(), String.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, map()}
   def send_event(:object_id, client_code, refresh_token, template_id, params, object_id) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+    Token.get_client_access_token(client_code, refresh_token) |> case do
+      {:ok, token} ->
       API.request(
         :post,
         "/crm/v3/timeline/events",
@@ -71,13 +73,14 @@ defmodule Hubspot.Manage.Client do
         }),
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end
 
   def send_event(:email, client_code, refresh_token, template_id, params, email) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} ->
       API.request(
         :post,
         "/crm/v3/timeline/events",
@@ -88,7 +91,6 @@ defmodule Hubspot.Manage.Client do
         }),
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end
@@ -106,14 +108,15 @@ defmodule Hubspot.Manage.Client do
   @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
           {:ok, list()} | {:error, map()}
   def get_contact_by_email(client_code, refresh_token, email) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case  do
+      {:ok, token} ->
       API.request(
         :get,
         "crm/v3/objects/contacts/#{email}?idProperty=email",
         nil,
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end
@@ -124,8 +127,8 @@ defmodule Hubspot.Manage.Client do
   @spec get_contact_by_property(String.t(), String.t(), String.t(), String.t()) ::
           {:ok, list()} | {:error, map()}
   def get_contact_by_property(client_code, refresh_token, property_name, property_value) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
-      API.request(
+    Token.get_client_access_token(client_code, refresh_token) |> case do
+      {:ok, token} -> API.request(
         :post,
         "crm/v3/objects/contacts/search",
         Jason.encode!(%{
@@ -143,7 +146,6 @@ defmodule Hubspot.Manage.Client do
         }),
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-    else
       {:not_found, reason} -> {:error, reason}
     end
   end

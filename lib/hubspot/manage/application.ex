@@ -16,13 +16,15 @@ defmodule Hubspot.Manage.Application do
   """
   @spec list_app_properties() :: {:ok, map()} | {:error, map()}
   def list_app_properties() do
-    with :ok <-validate_app_credentials() do
+    validate_app_credentials()
+    |> case do
+      :ok ->
       API.request(
         :get,
         "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}"
       )
       |> case do
-        {:ok, %{status: status, body: body}} -> {:ok, %{status: status,body: filter_property_changes(body["results"])}}
+        {:ok, %{status: status, body: body}} -> {:ok, %{status: status, body: filter_property_changes(body["results"])}}
         {:error, body} -> {:error, body}
       end
     end
@@ -40,7 +42,8 @@ defmodule Hubspot.Manage.Application do
           {:ok, String.t()} | {:error, String.t()}
   def add_hubspot_property_subscription(property_names) when is_list(property_names) do
     # Get all current app properties
-    with {:ok, app_properties} <- list_app_properties() do
+    list_app_properties() |> case do
+      {:ok, app_properties} ->
       property_names
       |> Enum.filter(&(&1 not in app_properties))
       |> Enum.map(&add_hubspot_property_subscription/1)
