@@ -6,7 +6,6 @@ defmodule Hubspot.Manage.Application do
   """
 
   alias Hubspot.Common.API
-  alias Hubspot.Common.Helpers
 
   use Hubspot.Common.Config
   require Logger

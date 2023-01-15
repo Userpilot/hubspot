@@ -6,7 +6,6 @@ defmodule Hubspot.Manage.Client do
 
   alias Hubspot.Common.API
   alias Hubspot.Auth.Manage.Token
-  alias Hubspot.Common.Helpers
 
   @doc """
   list all client's object(contact, company) properties
