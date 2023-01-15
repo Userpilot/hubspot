@@ -106,7 +106,7 @@ defmodule Hubspot.Manage.Client do
   list all client's object(contact, company) properties
   """
   @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
-          {:ok, list()} | {:error, map()}
+          {:ok, map()} | {:error, map()}
   def get_contact_by_email(client_code, refresh_token, email) do
     Token.get_client_access_token(client_code, refresh_token)
     |> case  do
@@ -125,7 +125,7 @@ defmodule Hubspot.Manage.Client do
   list all client's object(contact, company) properties
   """
   @spec get_contact_by_property(String.t(), String.t(), String.t(), String.t()) ::
-          {:ok, list()} | {:error, map()}
+          {:ok, map()} | {:error, map()}
   def get_contact_by_property(client_code, refresh_token, property_name, property_value) do
     Token.get_client_access_token(client_code, refresh_token) |> case do
       {:ok, token} -> API.request(
