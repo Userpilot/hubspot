@@ -15,16 +15,15 @@ defmodule Hubspot.Manage.Application do
   list all the properties the hubspot app listens to changes for
   this includes default and custom properties
   """
-  @spec list_app_properties() :: {:ok, list()} | {:error, map()}
+  @spec list_app_properties() :: {:ok, map()} | {:error, map()}
   def list_app_properties() do
     with :ok <-validate_app_credentials() do
       API.request(
         :get,
         "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}"
       )
-      |> Helpers.normalize_api_response()
       |> case do
-        {:ok, body} -> {:ok, filter_property_changes(body["results"])}
+        {:ok, %{status: status, body: body}} -> {:ok, %{status: status,body: filter_property_changes(body["results"])}}
         {:error, body} -> {:error, body}
       end
     end
@@ -65,7 +64,6 @@ defmodule Hubspot.Manage.Application do
         {"content-type", "application/json"}
       ]
     )
-    |> Helpers.normalize_api_response()
   end
 
   # Make sure env variables provided

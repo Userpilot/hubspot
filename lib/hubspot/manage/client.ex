@@ -15,40 +15,42 @@ defmodule Hubspot.Manage.Client do
           {:ok, list()} | {:error, map()}
   def list_custom_properties(client_code, refresh_token, object_type)
       when object_type in [:contact, :company] do
-        with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
-          API.request(
-          :get,
-          "crm/v3/properties/#{object_type}",
-          nil,
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-          )
-          |> Helpers.normalize_api_response()
-          |> case do
-            {:ok, body} -> {:ok, Enum.map(body["results"], &to_property/1)}
-            {:error, body} -> {:error, body}
-          end
-        else
-          {:not_found, reason} -> {:error,reason}
-        end
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :get,
+        "crm/v3/properties/#{object_type}",
+        nil,
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
+      |> case do
+        {:ok, %{status: status, body: body}} ->
+          {:ok, %{status: status, body: Enum.map(body["results"], &to_property/1)}}
+
+        {:error, body} ->
+          {:error, body}
+      end
+    else
+      {:not_found, reason} -> {:error, reason}
+    end
   end
 
-  def list_custom_properties(_client_code,_refresh_token,_object_type), do: {:error, "only :contact or :company objects are supported"}
+  def list_custom_properties(_client_code, _refresh_token, _object_type),
+    do: {:error, "only :contact or :company objects are supported"}
 
   @doc """
   Get client info
   """
   @spec get_client_info(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def get_client_info(client_code, refresh_token) do
-    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
       API.request(
         :get,
         "/account-info/v3/details",
         nil,
         [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
       )
-      |> Helpers.normalize_api_response()
     else
-      {:not_found, reason} -> {:error,reason}
+      {:not_found, reason} -> {:error, reason}
     end
   end
 
@@ -56,44 +58,39 @@ defmodule Hubspot.Manage.Client do
   Send a hubspot event to the specified event template id
   you can either use object_id or email as the contact identifier
   """
-  @spec send_event(String.t(), String.t(),String.t(),map(),keyword()) :: {:ok, map()} | {:error, map()}
-  def send_event(client_code, refresh_token,template_id,params, object_id: object_id) do
-
-    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
-
-    API.request(
-      :post,
-      "/crm/v3/timeline/events",
-      Jason.encode!(%{
-        eventTemplateId: template_id,
-        objectId: object_id,
-        tokens: params
-      }),
-      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-    )
-    |> Helpers.normalize_api_response()
+  @spec send_event(Atom.t(), String.t(), String.t(), String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, map()}
+  def send_event(:object_id, client_code, refresh_token, template_id, params, object_id) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :post,
+        "/crm/v3/timeline/events",
+        Jason.encode!(%{
+          eventTemplateId: template_id,
+          objectId: object_id,
+          tokens: params
+        }),
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
     else
-      {:not_found, reason} -> {:error,reason}
+      {:not_found, reason} -> {:error, reason}
     end
   end
 
-  def send_event(client_code, refresh_token,template_id,params, email: email) do
-
-    with {:ok, token} <-  Token.get_client_access_token(client_code, refresh_token) do
-
-    API.request(
-      :post,
-      "/crm/v3/timeline/events",
-      Jason.encode!(%{
-        eventTemplateId: template_id,
-        email: email,
-        tokens: params
-      }),
-      [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-    )
-    |> Helpers.normalize_api_response()
+  def send_event(:email, client_code, refresh_token, template_id, params, email) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :post,
+        "/crm/v3/timeline/events",
+        Jason.encode!(%{
+          eventTemplateId: template_id,
+          email: email,
+          tokens: params
+        }),
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
     else
-      {:not_found, reason} -> {:error,reason}
+      {:not_found, reason} -> {:error, reason}
     end
   end
 
@@ -103,4 +100,52 @@ defmodule Hubspot.Manage.Client do
       label: property["label"],
       hubspot_defined: property["hubspotDefined"]
     }
+
+  @doc """
+  list all client's object(contact, company) properties
+  """
+  @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
+          {:ok, list()} | {:error, map()}
+  def get_contact_by_email(client_code, refresh_token, email) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :get,
+        "crm/v3/objects/contacts/#{email}?idProperty=email",
+        nil,
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
+    else
+      {:not_found, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  list all client's object(contact, company) properties
+  """
+  @spec get_contact_by_property(String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, list()} | {:error, map()}
+  def get_contact_by_property(client_code, refresh_token, property_name, property_value) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token) do
+      API.request(
+        :post,
+        "crm/v3/objects/contacts/search",
+        Jason.encode!(%{
+          filterGroups: [
+            %{
+              filters: [
+                %{
+                  propertyName: property_name,
+                  operator: "EQ",
+                  value: property_value
+                }
+              ]
+            }
+          ]
+        }),
+        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+      )
+    else
+      {:not_found, reason} -> {:error, reason}
+    end
+  end
 end
