@@ -16,20 +16,23 @@ defmodule Hubspot.Manage.Client do
       when object_type in [:contact, :company] do
     Token.get_client_access_token(client_code, refresh_token)
     |> case do
-      {:ok, token} -> API.request(
-        :get,
-        "crm/v3/properties/#{object_type}",
-        nil,
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-      )
-      |> case do
-        {:ok, %{status: status, body: body}} ->
-          {:ok, %{status: status, body: Enum.map(body["results"], &to_property/1)}}
+      {:ok, token} ->
+        API.request(
+          :get,
+          "crm/v3/properties/#{object_type}",
+          nil,
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+        |> case do
+          {:ok, %{status: status, body: body}} ->
+            {:ok, %{status: status, body: Enum.map(body["results"], &to_property/1)}}
 
-        {:error, body} ->
-          {:error, body}
-      end
-      {:not_found, reason} -> {:error, reason}
+          {:error, body} ->
+            {:error, body}
+        end
+
+      {:not_found, reason} ->
+        {:error, reason}
     end
   end
 
@@ -44,13 +47,15 @@ defmodule Hubspot.Manage.Client do
     Token.get_client_access_token(client_code, refresh_token)
     |> case do
       {:ok, token} ->
-      API.request(
-        :get,
-        "/account-info/v3/details",
-        nil,
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-      )
-      {:not_found, reason} -> {:error, reason}
+        API.request(
+          :get,
+          "/account-info/v3/details",
+          nil,
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
     end
   end
 
@@ -58,40 +63,45 @@ defmodule Hubspot.Manage.Client do
   Send a hubspot event to the specified event template id
   you can either use object_id or email as the contact identifier
   """
-  @spec send_event(Atom.t(), String.t(), String.t(), String.t(), map(), keyword()) ::
+  @spec send_event(String.t(), String.t(), Atom.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, map()}
-  def send_event(:object_id, client_code, refresh_token, template_id, params, object_id) do
-    Token.get_client_access_token(client_code, refresh_token) |> case do
-      {:ok, token} ->
-      API.request(
-        :post,
-        "/crm/v3/timeline/events",
-        Jason.encode!(%{
-          eventTemplateId: template_id,
-          objectId: object_id,
-          tokens: params
-        }),
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-      )
-      {:not_found, reason} -> {:error, reason}
-    end
-  end
-
-  def send_event(:email, client_code, refresh_token, template_id, params, email) do
+  def send_event(client_code, refresh_token, :object_id, template_id, params, object_id) do
     Token.get_client_access_token(client_code, refresh_token)
     |> case do
       {:ok, token} ->
-      API.request(
-        :post,
-        "/crm/v3/timeline/events",
-        Jason.encode!(%{
-          eventTemplateId: template_id,
-          email: email,
-          tokens: params
-        }),
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-      )
-      {:not_found, reason} -> {:error, reason}
+        API.request(
+          :post,
+          "/crm/v3/timeline/events",
+          Jason.encode!(%{
+            eventTemplateId: template_id,
+            objectId: object_id,
+            tokens: params
+          }),
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def send_event(client_code, refresh_token, :email, template_id, params, email) do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/crm/v3/timeline/events",
+          Jason.encode!(%{
+            eventTemplateId: template_id,
+            email: email,
+            tokens: params
+          }),
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
     end
   end
 
@@ -109,44 +119,63 @@ defmodule Hubspot.Manage.Client do
           {:ok, map()} | {:error, map()}
   def get_contact_by_email(client_code, refresh_token, email) do
     Token.get_client_access_token(client_code, refresh_token)
-    |> case  do
+    |> case do
       {:ok, token} ->
-      API.request(
-        :get,
-        "crm/v3/objects/contacts/#{email}?idProperty=email",
-        nil,
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
-      )
-      {:not_found, reason} -> {:error, reason}
+        API.request(
+          :get,
+          "crm/v3/objects/contacts/#{email}?idProperty=email",
+          nil,
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
     end
   end
 
   @doc """
-  list all client's object(contact, company) properties
+  Get all objects(contact,company) matching the property_name,propery_value
   """
-  @spec get_contact_by_property(String.t(), String.t(), String.t(), String.t()) ::
+  @spec get_object_by_property(
+          String.t(),
+          String.t(),
+          :contact | :company,
+          String.t(),
+          String.t()
+        ) ::
           {:ok, map()} | {:error, map()}
-  def get_contact_by_property(client_code, refresh_token, property_name, property_value) do
-    Token.get_client_access_token(client_code, refresh_token) |> case do
-      {:ok, token} -> API.request(
-        :post,
-        "crm/v3/objects/contacts/search",
-        Jason.encode!(%{
-          filterGroups: [
-            %{
-              filters: [
-                %{
-                  propertyName: property_name,
-                  operator: "EQ",
-                  value: property_value
-                }
-              ]
-            }
-          ]
-        }),
-        [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+  def get_object_by_property(
+        client_code,
+        refresh_token,
+        object_type,
+        property_name,
+        property_value
       )
-      {:not_found, reason} -> {:error, reason}
+      when object_type in [:contact, :company] do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "crm/v3/objects/#{object_type}/search",
+          Jason.encode!(%{
+            filterGroups: [
+              %{
+                filters: [
+                  %{
+                    propertyName: property_name,
+                    operator: "EQ",
+                    value: property_value
+                  }
+                ]
+              }
+            ]
+          }),
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
     end
   end
 end
