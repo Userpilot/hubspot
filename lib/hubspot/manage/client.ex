@@ -134,6 +134,27 @@ defmodule Hubspot.Manage.Client do
   end
 
   @doc """
+  get object(:contact,:company) by id
+  """
+  @spec get_object_by_id(String.t(), String.t(), :contact | :company, String.t()) ::
+          {:ok, map()} | {:error, map()}
+  def get_object_by_id(client_code, refresh_token, object_type, object_id) do
+    Token.get_client_access_token(client_code, refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :get,
+          "crm/v3/objects/#{object_type}s/#{object_id}",
+          nil,
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Get all objects(contact,company) matching the property_name,propery_value
   """
   @spec get_object_by_property(
