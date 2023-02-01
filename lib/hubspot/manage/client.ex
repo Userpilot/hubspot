@@ -144,7 +144,7 @@ defmodule Hubspot.Manage.Client do
       {:ok, token} ->
         API.request(
           :get,
-          "crm/v3/objects/#{object_type}s/#{object_id}",
+          "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}",
           nil,
           [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
         )
@@ -199,4 +199,7 @@ defmodule Hubspot.Manage.Client do
         {:error, reason}
     end
   end
+
+  defp to_object_type(:conatct), do: "contacts"
+  defp to_object_type(:company), do: "companies"
 end
