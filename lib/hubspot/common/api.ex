@@ -38,8 +38,9 @@ defmodule Hubspot.Common.API do
        do: {:ok, %{status: status, body: Jason.decode!(body), headers: headers}}
 
   # Hubspot API returns xml for 404 response, so we can't decode it and we need to treat it differently(soft error)
-  defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response) when status == 404,
-    do: {:error, %{status: status, body: body, headers: headers}}
+  defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response)
+       when status == 404,
+       do: {:error, %{status: status, body: body, headers: headers}}
 
   defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response),
     do: {:error, %{status: status, body: Jason.decode!(body), headers: headers}}
