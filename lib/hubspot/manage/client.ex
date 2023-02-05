@@ -14,29 +14,25 @@ defmodule Hubspot.Manage.Client do
           {:ok, list()} | {:error, map()}
   def list_custom_properties(client_code, refresh_token, object_type)
       when object_type in [:contact, :company] do
-    Token.get_client_access_token(client_code, refresh_token)
-    |> case do
-      {:ok, token} ->
-        API.request(
-          :get,
-          "crm/v3/properties/#{object_type}",
-          nil,
-          [
-            {"Content-type", "application/json"},
-            {"authorization", "Bearer #{token}"},
-            {"accept", "application/json"}
-          ]
-        )
-        |> case do
-          {:ok, %{status: status, body: body}} ->
-            {:ok, %{status: status, body: Enum.map(body["results"], &to_property/1)}}
-
-          {:error, body} ->
-            {:error, body}
-        end
-
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{status: status, body: body}} <-
+           API.request(
+             :get,
+             "crm/v3/properties/#{object_type}",
+             nil,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, %{status: status, body: Enum.map(body["results"], &to_property/1)}}
+    else
       {:not_found, reason} ->
         {:error, reason}
+
+      error ->
+        error
     end
   end
 
@@ -48,7 +44,8 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_client_info(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def get_client_info(client_code, refresh_token) do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
@@ -74,7 +71,8 @@ defmodule Hubspot.Manage.Client do
   @spec send_event(String.t(), String.t(), Atom.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, map()}
   def send_event(client_code, refresh_token, :object_id, template_id, params, object_id) do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
@@ -98,7 +96,8 @@ defmodule Hubspot.Manage.Client do
   end
 
   def send_event(client_code, refresh_token, :email, template_id, params, email) do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
@@ -134,7 +133,8 @@ defmodule Hubspot.Manage.Client do
   @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, map()}
   def get_contact_by_email(client_code, refresh_token, email) do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
@@ -159,7 +159,8 @@ defmodule Hubspot.Manage.Client do
   @spec get_object_by_id(String.t(), String.t(), :contact | :company, String.t()) ::
           {:ok, map()} | {:error, map()}
   def get_object_by_id(client_code, refresh_token, object_type, object_id) do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
@@ -197,7 +198,8 @@ defmodule Hubspot.Manage.Client do
         property_value
       )
       when object_type in [:contact, :company] do
-    Token.get_client_access_token(client_code, refresh_token)
+    client_code
+    |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
