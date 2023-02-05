@@ -16,20 +16,15 @@ defmodule Hubspot.Manage.Application do
   """
   @spec list_app_properties() :: {:ok, map()} | {:error, map()}
   def list_app_properties() do
-    validate_app_credentials()
-    |> case do
-      :ok ->
-      API.request(
-        :get,
-        "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}"
-      )
-      |> case do
-        {:ok, %{status: status, body: body}} -> {:ok, %{status: status, body: filter_property_changes(body["results"])}}
-        {:error, body} -> {:error, body}
-      end
+    with :ok <- validate_app_credentials(),
+    {:ok, %{status: status, body: body}} <- API.request(
+      :get,
+      "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}"
+    ) do
+      {:ok, %{status: status, body: filter_property_changes(body["results"])}}
+    else
+      {:error, body} -> {:error, body}
     end
-
-
   end
 
   @doc """

@@ -21,7 +21,7 @@ defmodule Hubspot.Manage.Client do
           :get,
           "crm/v3/properties/#{object_type}",
           nil,
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
         |> case do
           {:ok, %{status: status, body: body}} ->
@@ -51,7 +51,7 @@ defmodule Hubspot.Manage.Client do
           :get,
           "/account-info/v3/details",
           nil,
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
 
       {:not_found, reason} ->
@@ -77,7 +77,7 @@ defmodule Hubspot.Manage.Client do
             objectId: object_id,
             tokens: params
           }),
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
 
       {:not_found, reason} ->
@@ -97,7 +97,7 @@ defmodule Hubspot.Manage.Client do
             email: email,
             tokens: params
           }),
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
 
       {:not_found, reason} ->
@@ -125,7 +125,7 @@ defmodule Hubspot.Manage.Client do
           :get,
           "crm/v3/objects/contacts/#{email}?idProperty=email",
           nil,
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
 
       {:not_found, reason} ->
@@ -146,7 +146,7 @@ defmodule Hubspot.Manage.Client do
           :get,
           "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}",
           nil,
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}, {"accept", "application/json"}]
         )
 
       {:not_found, reason} ->
@@ -192,7 +192,7 @@ defmodule Hubspot.Manage.Client do
               }
             ]
           }),
-          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}"}]
+          [{"Content-type", "application/json"}, {"authorization", "Bearer #{token}", {"accept", "application/json"}}]
         )
 
       {:not_found, reason} ->
@@ -200,6 +200,6 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  defp to_object_type(:conatct), do: "contacts"
+  defp to_object_type(:contact), do: "contacts"
   defp to_object_type(:company), do: "companies"
 end
