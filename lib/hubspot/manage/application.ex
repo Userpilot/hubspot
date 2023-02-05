@@ -22,8 +22,6 @@ defmodule Hubspot.Manage.Application do
       "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}"
     ) do
       {:ok, %{status: status, body: filter_property_changes(body["results"])}}
-    else
-      {:error, body} -> {:error, body}
     end
   end
 
