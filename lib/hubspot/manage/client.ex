@@ -122,8 +122,8 @@ defmodule Hubspot.Manage.Client do
 
   defp to_property(property),
     do: %{
-      name: property["name"],
-      label: property["label"],
+      id: property["name"],
+      title: property["label"],
       hubspot_defined: property["hubspotDefined"]
     }
 
