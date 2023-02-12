@@ -48,7 +48,8 @@ defmodule Hubspot.MixProject do
       {:jason, "~> 1.2.2"},
       {:finch, "~> 0.13"},
       {:husky, "~> 1.0", only: :dev, runtime: false},
-      {:credo, "~> 1.6", only: :dev, runtime: false}
+      {:credo, "~> 1.6", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false}
     ]
   end
 end
