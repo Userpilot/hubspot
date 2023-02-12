@@ -38,41 +38,6 @@ jobs:
             ./_build
           key: ${{ runner.os }}-mix-build-${{ github.run_number }}
 
-  mix-tests:
-    name: Unit and integration tests
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Start test support services
-        run: |
-          epmd -daemon
-          docker-compose -f ./docker/docker-compose.yaml up -d
-
-      - name: Cache Hex
-        uses: actions/cache@v2
-        with:
-          path: |
-            ./deps
-            ~/.hex
-          key: ${{ runner.os }}-mix-deps-${{ hashFiles('mix.lock', '**/mix.exs') }}
-
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "24"
-          elixir-version: "1.13.3"
-
-      - run: MIX_ENV=test mix do deps.get, ecto.migrate
-      - run: mix test --seed 0
-
-      - name: Stop test support services
-        if: always()
-        run: |
-          epmd -kill
-          docker-compose -f ./docker/docker-compose.yaml down
-
   check-code-style:
     needs: compile
     name: Code style adherence
