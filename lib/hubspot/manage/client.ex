@@ -68,7 +68,7 @@ defmodule Hubspot.Manage.Client do
   Send a hubspot event to the specified event template id
   you can either use object_id or email as the contact identifier
   """
-  @spec send_event(String.t(), String.t(), Atom.t(), String.t(), map(), keyword()) ::
+  @spec send_event(String.t(), String.t(), :object_id | :email, String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, map()}
   def send_event(client_code, refresh_token, :object_id, template_id, params, object_id) do
     client_code
@@ -251,7 +251,7 @@ defmodule Hubspot.Manage.Client do
     query_params =
       to_query_params_string(
         limit: page_size,
-        after_token: after_token,
+        after: after_token,
         properties: to_properties_string(properties)
       )
 
