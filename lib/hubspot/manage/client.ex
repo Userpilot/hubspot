@@ -267,7 +267,7 @@ defmodule Hubspot.Manage.Client do
                {"accept", "application/json"}
              ]
            ) do
-      {:ok, %{status: status, body: body["results"]}}
+      {:ok, %{status: status, body: body}}
     else
       {:not_found, reason} ->
         {:error, reason}
