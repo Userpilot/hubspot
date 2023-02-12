@@ -229,6 +229,62 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
+  @doc """
+  Read list of hubspot objects(contacts/companies)
+
+  Given client's auth creddentials(clinet_code,refresh_token),
+  page_size,after_token(token returned by previous call for
+  next page), and properties(list of properties returned for each
+  object), the function will return a list of non-archived objects.
+  """
+  @spec list_objects(
+          String.t(),
+          String.t(),
+          :contact | :company,
+          String.t(),
+          String.t() | nil,
+          list()
+        ) ::
+          {:ok, list()} | {:error, map()}
+  def list_objects(client_code, refresh_token, object_type, page_size, after_token, properties)
+      when object_type in [:contact, :company] do
+    query_params =
+      to_query_params_string(
+        page_size: page_size,
+        after_token: after_token,
+        properties: to_properties_string(properties)
+      )
+
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{status: status, body: body}} <-
+           API.request(
+             :get,
+             "crm/v3/objects/#{to_object_type(object_type)}?#{query_params}",
+             nil,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, %{status: status, body: body["results"]}}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
   defp to_object_type(:contact), do: "contacts"
   defp to_object_type(:company), do: "companies"
+
+  defp to_properties_string(properties), do: Enum.join(properties, ", ")
+
+  defp to_query_params_string(params) do
+    params
+    |> Enum.reject(fn {_key, val} -> is_nil(val) end)
+    |> Enum.map_join("&", fn {key, val} -> "#{key}=#{val}" end)
+  end
 end
