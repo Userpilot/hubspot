@@ -250,7 +250,7 @@ defmodule Hubspot.Manage.Client do
       when object_type in [:contact, :company] do
     query_params =
       to_query_params_string(
-        page_size: page_size,
+        limit: page_size,
         after_token: after_token,
         properties: to_properties_string(properties)
       )
