@@ -282,7 +282,7 @@ defmodule Hubspot.Manage.Client do
   defp to_object_type(:contact), do: "contacts"
   defp to_object_type(:company), do: "companies"
 
-  defp to_properties_string(properties), do: Enum.join(properties, ", ")
+  defp to_properties_string(properties), do: Enum.join(properties, ",")
 
   defp to_query_params_string(params) do
     params
