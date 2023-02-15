@@ -156,16 +156,18 @@ defmodule Hubspot.Manage.Client do
   @doc """
   get object(:contact,:company) by id
   """
-  @spec get_object_by_id(String.t(), String.t(), :contact | :company, String.t()) ::
+  @spec get_object_by_id(String.t(), String.t(), :contact | :company, String.t(), list()) ::
           {:ok, map()} | {:error, map()}
-  def get_object_by_id(client_code, refresh_token, object_type, object_id) do
+  def get_object_by_id(client_code, refresh_token, object_type, object_id, properties) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
+        query_params = to_query_params_string(properties: to_properties_string(properties))
+
         API.request(
           :get,
-          "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}",
+          "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}?#{query_params}",
           nil,
           [
             {"Content-type", "application/json"},
