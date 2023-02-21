@@ -222,7 +222,8 @@ defmodule Hubspot.Manage.Client do
           }),
           [
             {"Content-type", "application/json"},
-            {"authorization", "Bearer #{token}", {"accept", "application/json"}}
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
           ]
         )
 
