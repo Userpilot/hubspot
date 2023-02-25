@@ -50,7 +50,7 @@ defmodule Hubspot.Manage.Client do
       {:ok, token} ->
         API.request(
           :get,
-          "/account-info/v3/details",
+          "/oauth/v1/access-tokens/#{token}",
           nil,
           [
             {"Content-type", "application/json"},
