@@ -248,7 +248,7 @@ defmodule Hubspot.Manage.Client do
           String.t() | nil,
           list()
         ) ::
-          {:ok, list()} | {:error, map()}
+          {:ok, map()} | {:error, map()}
   def list_objects(client_code, refresh_token, object_type, page_size, after_token, properties)
       when object_type in [:contact, :company] do
     query_params =
