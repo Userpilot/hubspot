@@ -16,13 +16,13 @@ defmodule Hubspot.Auth.Manage.Token do
 
       case generate_new_access_token(refresh_token) do
         {:ok, %{"access_token" => access_token}} ->
-          Cachex.expire(:hubspot_cache, client_code, :timer.seconds(@ttl))
+          Cachex.expire(:hubspot_cache, client_code, @ttl)
 
           {:commit, access_token}
 
-        _ ->
+        error ->
           {:ignore,
-           "Failed to generate an access token for Hubspot OAuth management API for client with code #{client_code}"}
+           "Failed to generate an access token for Hubspot OAuth management API for client with code #{client_code} with error #{inspect(error)}"}
       end
     end)
     |> maybe_set_cache(client_code)
@@ -75,7 +75,7 @@ defmodule Hubspot.Auth.Manage.Token do
   # https://github.com/whitfin/cachex/issues/195
   #
   defp maybe_set_cache({:commit, _} = response, client_code) do
-    Cachex.expire(:hubspot_cache, client_code, :timer.seconds(@ttl))
+    Cachex.expire(:hubspot_cache, client_code, @ttl)
 
     response
   end
