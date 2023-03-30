@@ -32,35 +32,62 @@ defmodule Hubspot.Manage.Application do
   add subscriptions for all the properies that are not already subscribed.
   If a single property is subblied, it will directly add the property
   """
-  @spec add_hubspot_property_subscription([String.t()]) ::
+  @spec add_hubspot_property_subscription([map()] | map()) ::
           {:ok, String.t()} | {:error, String.t()}
-  def add_hubspot_property_subscription(property_names) when is_list(property_names) do
+  def add_hubspot_property_subscription(properties) when is_list(properties) do
     # Get all current app properties
     list_app_properties()
     |> case do
-      {:ok, app_properties} ->
-        property_names
-        |> Enum.filter(&(&1 not in app_properties))
+      {:ok,
+       %{body: %{contact_properties: contact_properties, company_properties: company_properties}}} ->
+        properties
+        |> Enum.filter(
+          &(&1["id"] not in contact_properties and &1["id"] not in company_properties)
+        )
         |> Enum.map(&add_hubspot_property_subscription/1)
+        |> Enum.all?(fn
+          {:ok, %{status: 201}} ->
+            true
+
+          {status, body} ->
+            Logger.warn(
+              "error adding property subscription with response #{status} and body #{inspect(body)}"
+            )
+
+            false
+        end)
+        |> case do
+          true -> {:ok, "property subscription added"}
+          false -> {:error, "error adding property subscription"}
+        end
+
+      _ ->
+        {:error, "error connecting to hubspot"}
     end
   end
 
-  @spec add_hubspot_property_subscription(String.t()) :: list()
-  def add_hubspot_property_subscription(property_name) when is_binary(property_name) do
-    Logger.debug("Adding property #{property_name} to hubspot app subscriptions")
+  def add_hubspot_property_subscription(property) do
+    Logger.debug("Adding property #{inspect(property)} to hubspot app subscriptions")
 
     API.request(
       :post,
       "/webhooks/v3/#{config(:app_id)}/subscriptions?hapikey=#{config(:api_key)}",
       Jason.encode!(%{
         active: true,
-        eventType: "contact.propertyChange",
-        propertyName: property_name
+        eventType: "#{to_hubspot_object(property["type"])}.propertyChange",
+        propertyName: property["id"]
       }),
       [
         {"content-type", "application/json"}
       ]
     )
+  end
+
+  defp to_hubspot_object(property_type) do
+    case property_type do
+      "company_property" -> "company"
+      "user_property" -> "contact"
+    end
   end
 
   # Make sure env variables provided
@@ -73,8 +100,15 @@ defmodule Hubspot.Manage.Application do
   end
 
   defp filter_property_changes(subscriptions) do
-    subscriptions
-    |> Enum.filter(&(&1["eventType"] == "contact.propertyChange"))
-    |> Enum.map(& &1["propertyName"])
+    %{
+      contact_properties:
+        subscriptions
+        |> Enum.filter(&(&1["eventType"] == "contact.propertyChange"))
+        |> Enum.map(& &1["propertyName"]),
+      company_properties:
+        subscriptions
+        |> Enum.filter(&(&1["eventType"] == "company.propertyChange"))
+        |> Enum.map(& &1["propertyName"])
+    }
   end
 end
