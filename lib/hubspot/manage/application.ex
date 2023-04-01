@@ -45,16 +45,16 @@ defmodule Hubspot.Manage.Application do
           &(&1["id"] not in contact_properties and &1["id"] not in company_properties)
         )
         |> Enum.map(&add_hubspot_property_subscription/1)
-        |> Enum.all?(fn
-          {:ok, %{status: 201}} ->
-            true
+        |> Enum.reduce_while(true, fn
+          {:ok, %{status: 201}}, _acc ->
+            {:cont, true}
 
-          {status, body} ->
+          {status, body}, _acc ->
             Logger.warn(
               "error adding property subscription with response #{status} and body #{inspect(body)}"
             )
 
-            false
+            {:halt, false}
         end)
         |> case do
           true -> {:ok, "property subscription added"}
@@ -100,15 +100,14 @@ defmodule Hubspot.Manage.Application do
   end
 
   defp filter_property_changes(subscriptions) do
-    %{
-      contact_properties:
-        subscriptions
-        |> Enum.filter(&(&1["eventType"] == "contact.propertyChange"))
-        |> Enum.map(& &1["propertyName"]),
-      company_properties:
-        subscriptions
-        |> Enum.filter(&(&1["eventType"] == "company.propertyChange"))
-        |> Enum.map(& &1["propertyName"])
-    }
+    subscriptions
+    |> Enum.filter(&(&1["eventType"] in ["contact.propertyChange", "company.propertyChange"]))
+    |> Enum.group_by(
+      fn
+        %{"eventType" => "contact.propertyChange"} -> :contact_properties
+        %{"eventType" => "company.propertyChange"} -> :company_properties
+      end,
+      & &1["propertyName"]
+    )
   end
 end
