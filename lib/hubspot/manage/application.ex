@@ -83,12 +83,8 @@ defmodule Hubspot.Manage.Application do
     )
   end
 
-  defp to_hubspot_object(property_type) do
-    case property_type do
-      "company_property" -> "company"
-      "user_property" -> "contact"
-    end
-  end
+  defp to_hubspot_object("user_property"), do: "contact"
+  defp to_hubspot_object("company_property"), do: "company"
 
   # Make sure env variables provided
   defp validate_app_credentials() do
