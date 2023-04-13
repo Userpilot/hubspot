@@ -1,7 +1,7 @@
 defmodule Hubspot.Common.API do
   use Hubspot.Common.Config
 
-  @default_transport_retry_timeout 5_000
+  @default_transport_retry_timeout 1_000
 
   require Logger
 
