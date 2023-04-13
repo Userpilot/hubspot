@@ -22,8 +22,8 @@ defmodule Hubspot.Common.API do
          url,
          body,
          headers,
-         start_time \\ :erlang.monotonic_time(:millisecond),
-         opts
+         opts,
+         start_time \\ :erlang.monotonic_time(:millisecond)
        ) do
     type
     |> Finch.build(Path.join(config(:http_api), url), headers, body)
@@ -40,7 +40,7 @@ defmodule Hubspot.Common.API do
           Logger.warn("retrying request, reason: #{inspect(reason)}")
           # Wait for 10ms before retrying
           :timer.sleep(10)
-          do_send_request(type, url, body, headers, start_time, opts)
+          do_send_request(type, url, body, headers, opts, start_time)
         else
           {:error, error}
         end
