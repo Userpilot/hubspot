@@ -1,6 +1,8 @@
 defmodule Hubspot.Common.API do
   use Hubspot.Common.Config
 
+  @default_transport_retry_timeout 1_000
+
   require Logger
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
@@ -15,12 +17,38 @@ defmodule Hubspot.Common.API do
     end
   end
 
-  defp do_send_request(type, url, body, headers, opts),
-    do:
-      type
-      |> Finch.build(Path.join(config(:http_api), url), headers, body)
-      |> Finch.request(__MODULE__, opts)
-      |> decode_response()
+  defp do_send_request(
+         type,
+         url,
+         body,
+         headers,
+         opts,
+         start_time \\ :erlang.monotonic_time(:millisecond)
+       ) do
+    type
+    |> Finch.build(Path.join(config(:http_api), url), headers, body)
+    |> Finch.request(__MODULE__, opts)
+    # WA for Random socket closed issue https://github.com/sneako/finch/issues/62
+    |> case do
+      {:error, %Mint.TransportError{reason: reason} = error} ->
+        Logger.warn("Mint error #{inspect(error)}")
+
+        transport_retry_timeout =
+          Keyword.get(opts, :transport_retry_timeout, @default_transport_retry_timeout)
+
+        if :erlang.monotonic_time(:millisecond) < start_time + transport_retry_timeout do
+          Logger.warn("retrying request, reason: #{inspect(reason)}")
+          # Wait for 10ms before retrying
+          :timer.sleep(10)
+          do_send_request(type, url, body, headers, opts, start_time)
+        else
+          {:error, error}
+        end
+
+      {status, response} ->
+        decode_response({status, response})
+    end
+  end
 
   defp decode_response({:ok, %Finch.Response{status: _status, body: _body} = response}),
     do: decode_response(response)
