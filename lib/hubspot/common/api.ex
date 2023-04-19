@@ -31,13 +31,10 @@ defmodule Hubspot.Common.API do
     # WA for Random socket closed issue https://github.com/sneako/finch/issues/62
     |> case do
       {:error, %Mint.TransportError{reason: reason} = error} ->
-        Logger.warn("Mint error #{inspect(error)}")
-
         transport_retry_timeout =
           Keyword.get(opts, :transport_retry_timeout, @default_transport_retry_timeout)
 
         if :erlang.monotonic_time(:millisecond) < start_time + transport_retry_timeout do
-          Logger.warn("retrying request, reason: #{inspect(reason)}")
           # Wait for 10ms before retrying
           :timer.sleep(10)
           do_send_request(type, url, body, headers, opts, start_time)
