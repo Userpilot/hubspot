@@ -105,7 +105,7 @@ defmodule Hubspot.Manage.Client do
           "/crm/v3/timeline/events",
           Jason.encode!(%{
             eventTemplateId: template_id,
-            email: email,
+            email: String.trim(email),
             tokens: params
           }),
           [
@@ -139,7 +139,7 @@ defmodule Hubspot.Manage.Client do
       {:ok, token} ->
         API.request(
           :get,
-          "crm/v3/objects/contacts/#{email}?idProperty=email",
+          "crm/v3/objects/contacts/#{String.trim(email)}?idProperty=email",
           nil,
           [
             {"content-type", "application/json"},
