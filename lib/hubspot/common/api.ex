@@ -6,7 +6,7 @@ defmodule Hubspot.Common.API do
   require Logger
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
-    opts = Keyword.merge([receive_timeout: 3_000], opts)
+    opts = Keyword.merge([receive_timeout: 6_000], opts)
 
     case :timer.tc(&do_send_request/5, [type, url, body, headers, opts]) do
       {time, {:ok, response}} ->
@@ -30,7 +30,7 @@ defmodule Hubspot.Common.API do
     |> Finch.request(__MODULE__, opts)
     # WA for Random socket closed issue https://github.com/sneako/finch/issues/62
     |> case do
-      {:error, %Mint.TransportError{reason: reason} = error} ->
+      {:error, %Mint.TransportError{reason: _reason} = error} ->
         transport_retry_timeout =
           Keyword.get(opts, :transport_retry_timeout, @default_transport_retry_timeout)
 
