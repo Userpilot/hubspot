@@ -2,10 +2,12 @@ defmodule Hubspot.Common.API do
   use Hubspot.Common.Config
 
   @default_transport_retry_timeout 1_000
+  @retry_threshold 3
 
   require Logger
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
+    opts = Keyword.merge([receive_timeout: 6_000], opts)
     opts = Keyword.merge([receive_timeout: 6_000], opts)
 
     case :timer.tc(&do_send_request/5, [type, url, body, headers, opts]) do
@@ -23,13 +25,18 @@ defmodule Hubspot.Common.API do
          body,
          headers,
          opts,
-         start_time \\ :erlang.monotonic_time(:millisecond)
+         start_time \\ :erlang.monotonic_time(:millisecond),
+         retry \\ 0
        ) do
     type
     |> Finch.build(Path.join(config(:http_api), url), headers, body)
     |> Finch.request(__MODULE__, opts)
     # WA for Random socket closed issue https://github.com/sneako/finch/issues/62
     |> case do
+      {:error, %Mint.TransportError{reason: :timeout} = _response}
+      when retry < @retry_threshold ->
+        do_send_request(type, url, body, headers, opts, start_time, retry + 1)
+
       {:error, %Mint.TransportError{reason: _reason} = error} ->
         transport_retry_timeout =
           Keyword.get(opts, :transport_retry_timeout, @default_transport_retry_timeout)
