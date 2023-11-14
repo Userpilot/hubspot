@@ -8,6 +8,7 @@ defmodule Hubspot.Common.API do
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
     opts = Keyword.merge([receive_timeout: 6_000], opts)
+    opts = Keyword.merge([receive_timeout: 6_000], opts)
 
     case :timer.tc(&do_send_request/5, [type, url, body, headers, opts]) do
       {time, {:ok, response}} ->
