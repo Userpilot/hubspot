@@ -42,10 +42,7 @@ defmodule Hubspot.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:cachex,
-       git: "https://github.com/whitfin/cachex.git",
-       ref: "a0ef5788859b340831bd4b491464f9ce34fdb1dc"},
-      {:jason, "~> 1.4.0"},
+      {:cachex, "~> 3.6"},
       {:finch, "~> 0.13"},
       {:husky, "~> 1.0", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: :dev, runtime: false},
