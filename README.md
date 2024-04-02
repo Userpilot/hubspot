@@ -1,2 +1,2 @@
 # hubspot
-Hubspot Elixir SDK to manage all userpilot/hubspot communications.
+Hubspot Elixir SDK to manage all userpilot/hubspot communications
