@@ -182,7 +182,85 @@ defmodule Hubspot.Manage.Client do
   end
 
   @doc """
-  Get all objects(contact,company) matching the property_name,propery_value
+  Get all objects(contact,company) matching the property_name, property_values, and last modified date >= last_modified_date_timestamp
+  """
+  @spec get_objects_by_property_values(
+          String.t(),
+          String.t(),
+          :contact | :company,
+          String.t(),
+          list(),
+          String.t(),
+          list(),
+          number()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def get_objects_by_property_values(
+        client_code,
+        refresh_token,
+        object_type,
+        next_token,
+        properties,
+        property_name,
+        property_values,
+        last_modified_date_timestamp
+      )
+      when object_type in [:contact, :company] do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        values_filters = [
+          %{
+            propertyName: property_name,
+            operator: "HAS_PROPERTY"
+          },
+          %{
+            propertyName: last_modified_date_prop_name(object_type),
+            operator: "GTE",
+            value: Integer.to_string(last_modified_date_timestamp)
+          },
+          %{
+            propertyName: property_name,
+            operator: "IN",
+            values: property_values
+          }
+        ]
+
+        request_body = %{
+          properties: properties,
+          filterGroups: [
+            %{
+              filters: values_filters
+            }
+          ]
+        }
+
+        request_body = maybe_add_after_to_body(request_body, next_token)
+
+        API.request(
+          :post,
+          "crm/v3/objects/#{object_type}/search",
+          Jason.encode!(request_body),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp maybe_add_after_to_body(request_body, after_number) when is_binary(after_number),
+    do: %{request_body | after: "#{after_number}"}
+
+  defp maybe_add_after_to_body(request_body, _after_number), do: request_body
+
+  @doc """
+  Get all objects(contact, company) matching the property_name, property_value
   """
   @spec get_object_by_property(
           String.t(),
@@ -235,7 +313,7 @@ defmodule Hubspot.Manage.Client do
   @doc """
   Read list of hubspot objects(contacts/companies)
 
-  Given client's auth creddentials(clinet_code,refresh_token),
+  Given client's auth credentials(client_code,refresh_token),
   page_size,after_token(token returned by previous call for
   next page), and properties(list of properties returned for each
   object), the function will return a list of non-archived objects.
@@ -290,4 +368,7 @@ defmodule Hubspot.Manage.Client do
     |> Enum.reject(fn {_key, val} -> is_nil(val) end)
     |> Enum.map_join("&", fn {key, val} -> "#{key}=#{val}" end)
   end
+
+  defp last_modified_date_prop_name(:company), do: "hs_lastmodifieddate"
+  defp last_modified_date_prop_name(:contact), do: "lastmodifieddate"
 end
