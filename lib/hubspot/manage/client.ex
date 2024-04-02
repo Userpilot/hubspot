@@ -228,6 +228,7 @@ defmodule Hubspot.Manage.Client do
         ]
 
         request_body = %{
+          after: "",
           properties: properties,
           filterGroups: [
             %{
