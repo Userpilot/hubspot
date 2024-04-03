@@ -183,6 +183,9 @@ defmodule Hubspot.Manage.Client do
 
   @doc """
   Get all objects(contact,company) matching the property_name, property_values, and last modified date >= last_modified_date_timestamp
+  By default, the search endpoints will return pages of 10 records at a time.
+  This can be changed by setting the limit parameter in the request body.
+  The maximum number of supported objects per page is 100.
   """
   @spec get_objects_by_property_values(
           String.t(),
@@ -192,6 +195,7 @@ defmodule Hubspot.Manage.Client do
           list(),
           String.t(),
           list(),
+          number(),
           number()
         ) ::
           {:ok, map()} | {:error, map()}
@@ -203,7 +207,8 @@ defmodule Hubspot.Manage.Client do
         properties,
         property_name,
         property_values,
-        last_modified_date_timestamp
+        last_modified_date_timestamp,
+        limit \\ 10
       )
       when object_type in [:contact, :company] do
     client_code
@@ -229,6 +234,7 @@ defmodule Hubspot.Manage.Client do
 
         request_body = %{
           after: "",
+          limit: Integer.to_string(limit),
           properties: properties,
           filterGroups: [
             %{
