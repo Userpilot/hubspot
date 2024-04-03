@@ -233,7 +233,7 @@ defmodule Hubspot.Manage.Client do
         ]
 
         request_body = %{
-          after: "",
+          after: parse_after_token(next_token),
           limit: Integer.to_string(limit),
           properties: properties,
           filterGroups: [
@@ -242,8 +242,6 @@ defmodule Hubspot.Manage.Client do
             }
           ]
         }
-
-        request_body = maybe_add_after_to_body(request_body, next_token)
 
         API.request(
           :post,
@@ -261,10 +259,8 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  defp maybe_add_after_to_body(request_body, after_number) when is_binary(after_number),
-    do: %{request_body | after: "#{after_number}"}
-
-  defp maybe_add_after_to_body(request_body, _after_number), do: request_body
+  defp parse_after_token(nil), do: ""
+  defp parse_after_token(token), do: token
 
   @doc """
   Get all objects(contact, company) matching the property_name, property_value
