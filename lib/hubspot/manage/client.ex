@@ -195,7 +195,6 @@ defmodule Hubspot.Manage.Client do
           list(),
           String.t(),
           list(),
-          number(),
           number()
         ) ::
           {:ok, map()} | {:error, map()}
@@ -207,7 +206,6 @@ defmodule Hubspot.Manage.Client do
         properties,
         property_name,
         property_values,
-        last_modified_date_timestamp,
         limit \\ 10
       )
       when object_type in [:contact, :company] do
@@ -219,11 +217,6 @@ defmodule Hubspot.Manage.Client do
           %{
             propertyName: property_name,
             operator: "HAS_PROPERTY"
-          },
-          %{
-            propertyName: last_modified_date_prop_name(object_type),
-            operator: "GTE",
-            value: Integer.to_string(last_modified_date_timestamp)
           },
           %{
             propertyName: property_name,
@@ -371,7 +364,4 @@ defmodule Hubspot.Manage.Client do
     |> Enum.reject(fn {_key, val} -> is_nil(val) end)
     |> Enum.map_join("&", fn {key, val} -> "#{key}=#{val}" end)
   end
-
-  defp last_modified_date_prop_name(:company), do: "hs_lastmodifieddate"
-  defp last_modified_date_prop_name(:contact), do: "lastmodifieddate"
 end
