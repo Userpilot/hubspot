@@ -182,7 +182,81 @@ defmodule Hubspot.Manage.Client do
   end
 
   @doc """
-  Get all objects(contact,company) matching the property_name,propery_value
+  Get all objects(contact,company) matching the property_name, property_values, and last modified date >= last_modified_date_timestamp
+  By default, the search endpoints will return pages of 10 records at a time.
+  This can be changed by setting the limit parameter in the request body.
+  The maximum number of supported objects per page is 100.
+  """
+  @spec get_objects_by_property_values(
+          String.t(),
+          String.t(),
+          :contact | :company,
+          String.t(),
+          list(),
+          String.t(),
+          list(),
+          number()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def get_objects_by_property_values(
+        client_code,
+        refresh_token,
+        object_type,
+        next_token,
+        properties,
+        property_name,
+        property_values,
+        limit \\ 10
+      )
+      when object_type in [:contact, :company] do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        values_filters = [
+          %{
+            propertyName: property_name,
+            operator: "HAS_PROPERTY"
+          },
+          %{
+            propertyName: property_name,
+            operator: "IN",
+            values: property_values
+          }
+        ]
+
+        request_body = %{
+          after: parse_after_token(next_token),
+          limit: Integer.to_string(limit),
+          properties: properties,
+          filterGroups: [
+            %{
+              filters: values_filters
+            }
+          ]
+        }
+
+        API.request(
+          :post,
+          "crm/v3/objects/#{object_type}/search",
+          Jason.encode!(request_body),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp parse_after_token(nil), do: ""
+  defp parse_after_token(token), do: token
+
+  @doc """
+  Get all objects(contact, company) matching the property_name, property_value
   """
   @spec get_object_by_property(
           String.t(),
@@ -235,7 +309,7 @@ defmodule Hubspot.Manage.Client do
   @doc """
   Read list of hubspot objects(contacts/companies)
 
-  Given client's auth creddentials(clinet_code,refresh_token),
+  Given client's auth credentials(client_code,refresh_token),
   page_size,after_token(token returned by previous call for
   next page), and properties(list of properties returned for each
   object), the function will return a list of non-archived objects.
