@@ -271,7 +271,8 @@ defmodule Hubspot.Manage.Client do
         refresh_token,
         object_type,
         property_name,
-        property_value
+        property_value,
+        properties \\ []
       )
       when object_type in [:contact, :company] do
     client_code
@@ -282,6 +283,7 @@ defmodule Hubspot.Manage.Client do
           :post,
           "crm/v3/objects/#{object_type}/search",
           Jason.encode!(%{
+            properties: properties,
             filterGroups: [
               %{
                 filters: [
