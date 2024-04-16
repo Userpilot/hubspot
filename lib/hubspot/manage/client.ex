@@ -132,7 +132,7 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, map()}
-  def get_contact_by_email(client_code, refresh_token, email), properties \\ [] do
+  def get_contact_by_email(client_code, refresh_token, email, properties \\ []) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
