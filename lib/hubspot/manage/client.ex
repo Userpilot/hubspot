@@ -132,14 +132,14 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_contact_by_email(String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, map()}
-  def get_contact_by_email(client_code, refresh_token, email) do
+  def get_contact_by_email(client_code, refresh_token, email), properties \\ [] do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
       {:ok, token} ->
         API.request(
           :get,
-          "crm/v3/objects/contacts/#{String.trim(email)}?idProperty=email",
+          "crm/v3/objects/contacts/#{String.trim(email)}?idProperty=email&properties=#{to_properties_string(properties)}",
           nil,
           [
             {"content-type", "application/json"},
