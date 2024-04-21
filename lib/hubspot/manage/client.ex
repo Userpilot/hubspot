@@ -8,6 +8,35 @@ defmodule Hubspot.Manage.Client do
   alias Hubspot.Auth.Manage.Token
 
   @doc """
+  To get from Hubspot side the metadata information about some property, like the fieldType, etc ..
+  """
+  @spec get_custom_property_metadata(String.t(), String.t(), :contact | :company, String.t()) ::
+          {:ok, map()} | {:error, map()}
+  def get_custom_property_metadata(client_code, refresh_token, object_type, property_name)
+      when object_type in [:contact, :company] do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{status: status, body: body}} <-
+           API.request(
+             :get,
+             "crm/v3/properties/#{object_type}/#{property_name}",
+             nil,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, %{status: status, body: body}}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
   list all client's object(contact, company) properties
   """
   @spec list_custom_properties(String.t(), String.t(), :contact | :company) ::
