@@ -120,12 +120,15 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  defp to_property(property),
-    do: %{
+  defp to_property(property) do
+    %{
       id: property["name"],
       title: property["label"],
-      hubspot_defined: property["hubspotDefined"]
+      hubspot_defined: property["hubspotDefined"],
+      fieldType: property["fieldType"],
+      type: property["type"]
     }
+  end
 
   @doc """
   list all client's object(contact, company) properties
