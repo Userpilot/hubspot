@@ -43,7 +43,7 @@ defmodule Hubspot.MixProject do
   defp deps do
     [
       {:cachex, "~> 3.6"},
-      {:jason, "~> 1.2.2"},
+      {:jason, "~> 1.4.0"},
       {:finch, "~> 0.13"},
       {:husky, "~> 1.0", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: :dev, runtime: false},
