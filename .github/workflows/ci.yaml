@@ -67,7 +67,7 @@ jobs:
   credo-analysis:
     needs: compile
     name: Credo static analysis
-    runs-on: 
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses:  actions/checkout@v3
