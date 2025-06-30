@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses:  actions/checkout@v3
 
       - uses: erlef/setup-beam@v1
         with:
@@ -21,7 +21,7 @@ jobs:
 
       - name: Cache Hex
         id: cache-hex
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./deps
@@ -32,7 +32,7 @@ jobs:
         run: mix do deps.get, deps.compile, compile
 
       - name: Cache build
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./_build
@@ -41,12 +41,12 @@ jobs:
   check-code-style:
     needs: compile
     name: Code style adherence
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses:  actions/checkout@v3
       - name: Cache Hex
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./deps
@@ -57,7 +57,7 @@ jobs:
           otp-version: "24"
           elixir-version: "1.13.3"
       - name: Cache build
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./_build
@@ -67,12 +67,12 @@ jobs:
   credo-analysis:
     needs: compile
     name: Credo static analysis
-    runs-on: ubuntu-20.04
+    runs-on: 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses:  actions/checkout@v3
       - name: Cache Hex
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./deps
@@ -83,7 +83,7 @@ jobs:
           otp-version: "24"
           elixir-version: "1.13.3"
       - name: Cache build
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./_build
@@ -93,12 +93,12 @@ jobs:
   dialyzer-analysis:
     needs: compile
     name: Dialyzer static analysis
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses:  actions/checkout@v3
       - name: Cache Hex
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./deps
@@ -110,7 +110,7 @@ jobs:
           otp-version: "24"
           elixir-version: "1.13.3"
       - name: Cache Dialyzer PLTs
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         id: plt_cache
         with:
           path: |
@@ -120,7 +120,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
       - name: Cache build
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ./_build
