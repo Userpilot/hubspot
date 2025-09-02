@@ -456,7 +456,7 @@ defmodule Hubspot.Manage.Client do
       {:ok,
        %{
          status: status,
-         body: Enum.map(body["results"], &to_custom_object/1) ++ bind_standard_objects()
+         body: Enum.map(body["results"], &to_object(&1, :custom_object)) ++ get_standard_objects()
        }}
     else
       {:not_found, reason} ->
@@ -511,40 +511,43 @@ defmodule Hubspot.Manage.Client do
              ]
            ),
          custom_event_names_mapping <-
-           maybe_build_custom_event_names_mapping(client_code, refresh_token, opts) do
+           maybe_fetch_related_object_details(client_code, refresh_token, opts) do
       {:ok,
        %{
          status: status,
          body:
            Enum.map(body["results"], fn event ->
              event
-             |> maybe_add_standard_object_name()
-             |> maybe_add_custom_event_name(custom_event_names_mapping)
+             |> maybe_add_standard_object_details_to_custom_event()
+             |> maybe_add_custom_object_details_to_custom_event(custom_event_names_mapping)
+             |> to_custom_event()
            end)
        }}
     end
   end
 
-  defp bind_standard_objects(),
-    do:
-      @standard_objects_types
-      |> Enum.map(fn object_name ->
-        %{
-          fully_qualified_name: @standard_objects_types_map[object_name],
-          singular_name: to_string(object_name),
-          plural_name: @standard_objects_types_map[object_name],
-          is_standard_object: true,
-          primary_object_id: @primary_standard_objects_ids_map[to_string(object_name)]
-        }
-      end)
+  defp get_standard_objects(),
+    do: Enum.map(@standard_objects_types, &to_object(&1, :standard_object))
 
-  defp to_custom_object(object) do
+  defp to_object(object, :custom_object) do
     %{
       fully_qualified_name: object["fullyQualifiedName"],
       singular_name: object["labels"]["singular"],
       plural_name: object["labels"]["plural"],
       primary_object_id: object["objectTypeId"],
-      type: "custom_object"
+      is_standard_object: false,
+      is_custom_object: true
+    }
+  end
+
+  defp to_object(object_name, :standard_object) do
+    %{
+      fully_qualified_name: @standard_objects_types_map[object_name],
+      singular_name: to_string(object_name),
+      plural_name: @standard_objects_types_map[object_name],
+      primary_object_id: @primary_standard_objects_ids_map[to_string(object_name)],
+      is_standard_object: true,
+      is_custom_object: false
     }
   end
 
@@ -565,8 +568,7 @@ defmodule Hubspot.Manage.Client do
     do: %{
       id: property["name"],
       title: property["label"],
-      hubspot_defined: property["hubspotDefined"] || false,
-      fieldType: property["fieldType"],
+      is_custom_property: property["hubspotDefined"] || false,
       type: property["type"]
     }
 
@@ -575,7 +577,7 @@ defmodule Hubspot.Manage.Client do
 
   defp maybe_alter_object_name(object_name), do: "p_#{object_name}"
 
-  defp maybe_add_standard_object_name(event) do
+  defp maybe_add_standard_object_details_to_custom_event(event) do
     case Map.get(event, "primaryObjectId") do
       nil ->
         event
@@ -587,45 +589,93 @@ defmodule Hubspot.Manage.Client do
 
           object_name ->
             event
-            |> Map.put("objectName", String.capitalize(object_name))
-            |> Map.put("isStandardObject", true)
+            |> Map.put(
+              "related_object_fully_qualified_name",
+              String.capitalize(@standard_objects_types_map[String.to_atom(object_name)])
+            )
+            |> Map.put("related_object_name", String.capitalize(object_name))
+            |> Map.put("related_object_primary_object_id", object_id)
+            |> Map.put("related_object_singular_name", object_name)
+            |> Map.put(
+              "related_object_plural_name",
+              @standard_objects_types_map[String.to_atom(object_name)]
+            )
+            |> Map.put("is_related_standard_object", true)
+            |> Map.put("is_related_custom_object", false)
         end
     end
   end
 
-  defp maybe_add_custom_event_name(event, objects_ids_names_mapping) do
+  defp maybe_add_custom_object_details_to_custom_event(event, objects_ids_names_mapping) do
     case Map.get(objects_ids_names_mapping, event["primaryObjectId"]) do
       nil ->
         event
 
-      mapped_object_name ->
+      mapped_object_name when is_map(mapped_object_name) ->
         event
-        |> Map.put("objectName", String.capitalize(mapped_object_name))
-        |> Map.put("isStandardObject", false)
+        |> Map.put(
+          "related_object_fully_qualified_name",
+          String.capitalize(mapped_object_name["fully_qualified_name"])
+        )
+        |> Map.put("related_object_name", mapped_object_name["plural_name"])
+        |> Map.put(
+          "related_object_primary_object_id",
+          mapped_object_name["object_primary_object_id"]
+        )
+        |> Map.put("related_object_singular_name", mapped_object_name["singular_name"])
+        |> Map.put("is_related_standard_object", mapped_object_name["is_standard_object"])
+        |> Map.put("is_related_custom_object", mapped_object_name["is_custom_object"])
     end
   end
 
-  defp maybe_build_custom_event_names_mapping(client_code, refresh_token, opts) do
+  defp maybe_fetch_related_object_details(client_code, refresh_token, opts) do
     case Keyword.get(opts, :custom_event_names_mapping) do
       custom_event_names_mapping
       when is_map(custom_event_names_mapping) and map_size(custom_event_names_mapping) > 0 ->
         custom_event_names_mapping
 
       _ ->
-        build_custom_event_names_mapping(client_code, refresh_token)
+        fetch_related_object_details(client_code, refresh_token)
     end
   end
 
-  defp build_custom_event_names_mapping(client_code, refresh_token) do
+  defp fetch_related_object_details(client_code, refresh_token) do
     case discovery_custom_objects(client_code, refresh_token) do
       {:ok, %{status: 200, body: %{"results" => custom_objects} = _body}} ->
         custom_objects
         |> Enum.reduce(%{}, fn object, acc ->
-          Map.put(acc, object["objectTypeId"], object["labels"]["plural"])
+          Map.put(acc, object["objectTypeId"], %{
+            "fully_qualified_name" => object["fullyQualifiedName"],
+            "plural_name" => object["labels"]["plural"],
+            "singular_name" => object["labels"]["singular"],
+            "is_standard_object" => false,
+            "is_custom_object" => true
+          })
         end)
 
       _error ->
         %{}
     end
+  end
+
+  defp to_custom_event(event) do
+    %{
+      id: event["id"],
+      description: event["description"],
+      fully_qualified_name: event["fullyQualifiedName"],
+      is_related_custom_object: event["is_related_custom_object"],
+      is_related_standard_object: event["is_related_standard_object"],
+      labels: event["labels"],
+      name: event["name"],
+      object_type_id: event["objectTypeId"],
+      primary_object: event["primaryObject"],
+      primary_object_id: event["primaryObjectId"],
+      properties: event["properties"],
+      related_object_fully_qualified_name: event["related_object_fully_qualified_name"],
+      related_object_name: event["related_object_name"],
+      related_object_primary_object_id: event["related_object_primary_object_id"],
+      related_object_singular_name: event["related_object_singular_name"],
+      tracking_type: event["trackingType"]
+    }
   end
 end
