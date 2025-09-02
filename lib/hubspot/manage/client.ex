@@ -617,13 +617,13 @@ defmodule Hubspot.Manage.Client do
   end
 
   defp build_custom_event_names_mapping(client_code, refresh_token) do
-    with {:ok, %{status: 200, body: %{"results" => custom_objects} = _body}} <-
-           discovery_custom_objects(client_code, refresh_token) do
-      custom_objects
-      |> Enum.reduce(%{}, fn object, acc ->
-        Map.put(acc, object["objectTypeId"], object["labels"]["plural"])
-      end)
-    else
+    case discovery_custom_objects(client_code, refresh_token) do
+      {:ok, %{status: 200, body: %{"results" => custom_objects} = _body}} ->
+        custom_objects
+        |> Enum.reduce(%{}, fn object, acc ->
+          Map.put(acc, object["objectTypeId"], object["labels"]["plural"])
+        end)
+
       _error ->
         %{}
     end
