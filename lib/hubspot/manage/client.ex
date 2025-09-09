@@ -240,6 +240,9 @@ defmodule Hubspot.Manage.Client do
           {"accept", "application/json"}
         ])
 
+      {:not_found, reason} ->
+        {:error, reason}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -318,6 +321,9 @@ defmodule Hubspot.Manage.Client do
             {"accept", "application/json"}
           ]
         )
+
+      {:not_found, reason} ->
+        {:error, reason}
 
       {:error, reason} ->
         {:error, reason}
