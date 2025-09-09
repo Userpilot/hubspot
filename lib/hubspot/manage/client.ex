@@ -242,9 +242,6 @@ defmodule Hubspot.Manage.Client do
 
       {:not_found, reason} ->
         {:error, reason}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -323,9 +320,6 @@ defmodule Hubspot.Manage.Client do
         )
 
       {:not_found, reason} ->
-        {:error, reason}
-
-      {:error, reason} ->
         {:error, reason}
     end
   end
