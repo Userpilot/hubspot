@@ -6,8 +6,24 @@ defmodule Hubspot.Auth.Manage.Token do
 
   @ttl :timer.seconds(1_800)
 
+  @spec get_client_scopes(any, any) :: {:not_found, any} | {:ok, any} | {:commit, any}
+  def get_client_scopes(client_code, refresh_token) do
+    Cachex.fetch(:hubspot_cache, client_code <> "_scopes", fn _key ->
+      case generate_new_access_token(refresh_token) do
+        {:ok, %{"scopes" => scopes}} ->
+          {:commit, scopes}
+
+        error ->
+          {:ignore,
+           "Failed to generate an access token for Hubspot OAuth management API for client with code #{client_code} with error #{inspect(error)}"}
+      end
+    end)
+    |> maybe_set_cache(client_code)
+    |> normalize_cache_fetch()
+  end
+
   # Hubspot clients are identified by their code(returned after initial authentication flow)
-  @spec get_client_access_token(any, any) :: {:not_found, any} | {:ok, any}
+  @spec get_client_access_token(any, any) :: {:not_found, any} | {:ok, any} | {:commit, any}
   def get_client_access_token(client_code, refresh_token) do
     Cachex.fetch(:hubspot_cache, client_code, fn key ->
       Logger.info(
@@ -15,9 +31,8 @@ defmodule Hubspot.Auth.Manage.Token do
       )
 
       case generate_new_access_token(refresh_token) do
-        {:ok, %{"access_token" => access_token}} ->
-          Cachex.expire(:hubspot_cache, client_code, @ttl)
-
+        {:ok, %{"access_token" => access_token, "scopes" => scopes}} ->
+          Cachex.put(:hubspot_cache, client_code <> "_scopes", scopes)
           {:commit, access_token}
 
         error ->
@@ -76,7 +91,7 @@ defmodule Hubspot.Auth.Manage.Token do
   #
   defp maybe_set_cache({:commit, _} = response, client_code) do
     Cachex.expire(:hubspot_cache, client_code, @ttl)
-
+    Cachex.expire(:hubspot_cache, client_code <> "_scopes", @ttl)
     response
   end
 

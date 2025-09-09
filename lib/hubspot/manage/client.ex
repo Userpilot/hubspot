@@ -7,41 +7,66 @@ defmodule Hubspot.Manage.Client do
   alias Hubspot.Common.API
   alias Hubspot.Auth.Manage.Token
 
+  @custom_events_write_scope "behavioral_events.event_definitions.read_write"
+
   @primary_standard_objects_ids %{
     "0-1" => "contact",
     "0-2" => "company",
     "0-3" => "deal",
-    "0-5" => "ticket"
+    "0-5" => "ticket",
+    "0-162" => "service",
+    "0-53" => "invoice",
+    "0-7" => "product",
+    "0-14" => "quote",
+    "0-69" => "subscription",
+    "0-123" => "order",
+    "0-142" => "cart"
   }
 
-  @primary_standard_objects_ids_map %{
-    "contact" => "0-1",
-    "company" => "0-2",
-    "deal" => "0-3",
-    "ticket" => "0-5"
-  }
+  @primary_standard_objects_ids_map @primary_standard_objects_ids
+                                    |> Enum.map(fn {k, v} -> {v, k} end)
+                                    |> Enum.into(%{})
 
   # This needs to build an API function working with standard object and custom object ones
-  @standard_objects_types [
-    :contact,
-    :company,
-    :deal,
-    :ticket
-  ]
+  @standard_objects_types @primary_standard_objects_ids
+                          |> Enum.map(fn {_k, v} -> String.to_existing_atom(v) end)
+                          |> Enum.into([])
 
-  @plural_objects_types [
+  @eventable_standard_objects_types [
     "contacts",
     "companies",
     "deals",
     "tickets"
   ]
 
+  @plural_standard_objects_types [
+    "contacts",
+    "companies",
+    "deals",
+    "tickets",
+    "services",
+    "invoices",
+    "products",
+    "quotes",
+    "subscriptions",
+    "orders",
+    "carts"
+  ]
+
   @standard_objects_types_map %{
     contact: "contacts",
     company: "companies",
     deal: "deals",
-    ticket: "tickets"
+    ticket: "tickets",
+    service: "services",
+    invoice: "invoices",
+    product: "products",
+    quote: "quotes",
+    subscription: "subscriptions",
+    order: "orders",
+    cart: "carts"
   }
+
   @type standard_objects :: unquote(Enum.reduce(@standard_objects_types, &{:|, [], [&1, &2]}))
 
   @doc """
@@ -182,6 +207,119 @@ defmodule Hubspot.Manage.Client do
         )
 
       {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec allowed_to_use_custom_events?(String.t(), String.t()) ::
+          {:ok, boolean()} | {:error, map()}
+  def allowed_to_use_custom_events?(client_code, refresh_token) do
+    client_code
+    |> Token.get_client_scopes(refresh_token)
+    |> case do
+      {:ok, scope} ->
+        if @custom_events_write_scope in scope do
+          {:ok, true}
+        else
+          {:ok, false}
+        end
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec get_custom_event(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, map()}
+  def get_custom_event(client_code, refresh_token, custom_event_name) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(:get, "/events/v3/event-definitions/#{custom_event_name}", nil, [
+          {"authorization", "Bearer #{token}"},
+          {"accept", "application/json"}
+        ])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec send_custom_event(
+          String.t(),
+          String.t(),
+          :object_id | :email,
+          String.t(),
+          map(),
+          String.t()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def send_custom_event(
+        client_code,
+        refresh_token,
+        :object_id,
+        custom_event_name,
+        params,
+        object_id
+      ) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/send",
+          Jason.encode!(%{
+            eventName: custom_event_name,
+            objectId: object_id,
+            occurredAt: Map.get(params, "occurred_at", DateTime.now!("Etc/UTC")),
+            properties: %{
+              event_type: Map.get(params, "event_type", ""),
+              event_id: Map.get(params, "event_id", ""),
+              event_name: Map.get(params, "event_name", ""),
+              event_title: Map.get(params, "event_title", ""),
+              event_platform: Map.get(params, "event_platform", ""),
+              hostname: Map.get(params, "hostname", ""),
+              pathname: Map.get(params, "pathname", "")
+            }
+          }),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec define_custom_event(String.t(), String.t(), map()) :: {:ok, map()} | {:error, map()}
+  def define_custom_event(client_code, refresh_token, event_body) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/event-definitions",
+          Jason.encode!(%{
+            label: event_body[:label],
+            name: event_body[:name],
+            description: event_body[:description],
+            primaryObject: event_body[:primary_object],
+            includeDefaultProperties: event_body[:include_default_properties] || true,
+            propertyDefinitions: event_body[:property_definitions]
+          }),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:error, reason} ->
         {:error, reason}
     end
   end
@@ -415,30 +553,6 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  @spec discovery_custom_objects(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
-  def discovery_custom_objects(client_code, refresh_token) do
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
-         {:ok, %{status: status, body: body}} <-
-           API.request(
-             :get,
-             "crm/v3/schemas",
-             nil,
-             [
-               {"Content-type", "application/json"},
-               {"authorization", "Bearer #{token}"},
-               {"accept", "application/json"}
-             ]
-           ) do
-      {:ok, %{status: status, body: body}}
-    else
-      {:not_found, reason} ->
-        {:error, reason}
-
-      error ->
-        error
-    end
-  end
-
   @spec discovery_objects(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
   def discovery_objects(client_code, refresh_token) do
     with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
@@ -492,40 +606,6 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  @spec get_related_custom_events(String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, map()}
-  def get_related_custom_events(client_code, refresh_token, opts \\ []) do
-    search_term = Keyword.get(opts, :search_term, "")
-    include_properties = Keyword.get(opts, :include_properties, false)
-
-    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
-         {:ok, %{status: status, body: body}} <-
-           API.request(
-             :get,
-             "events/v3/event-definitions?searchString=#{search_term}&includeProperties=#{include_properties}",
-             nil,
-             [
-               {"Content-type", "application/json"},
-               {"authorization", "Bearer #{token}"},
-               {"accept", "application/json"}
-             ]
-           ),
-         custom_event_names_mapping <-
-           maybe_fetch_related_object_details(client_code, refresh_token, opts) do
-      {:ok,
-       %{
-         status: status,
-         body:
-           Enum.map(body["results"], fn event ->
-             event
-             |> maybe_add_standard_object_details_to_custom_event()
-             |> maybe_add_custom_object_details_to_custom_event(custom_event_names_mapping)
-             |> to_custom_event()
-           end)
-       }}
-    end
-  end
-
   defp get_standard_objects(),
     do: Enum.map(@standard_objects_types, &to_object(&1, :standard_object))
 
@@ -536,7 +616,9 @@ defmodule Hubspot.Manage.Client do
       plural_name: object["labels"]["plural"],
       primary_object_id: object["objectTypeId"],
       is_standard_object: false,
-      is_custom_object: true
+      is_custom_object: true,
+      requires_custom_events: true,
+      eventable: eventable?(object["labels"]["plural"], :custom_object)
     }
   end
 
@@ -547,7 +629,13 @@ defmodule Hubspot.Manage.Client do
       plural_name: @standard_objects_types_map[object_name],
       primary_object_id: @primary_standard_objects_ids_map[to_string(object_name)],
       is_standard_object: true,
-      is_custom_object: false
+      is_custom_object: false,
+      requires_custom_events:
+        not Enum.member?(
+          @eventable_standard_objects_types,
+          @standard_objects_types_map[object_name]
+        ),
+      eventable: eventable?(@standard_objects_types_map[object_name], :standard_object)
     }
   end
 
@@ -572,110 +660,16 @@ defmodule Hubspot.Manage.Client do
       type: property["type"]
     }
 
-  defp maybe_alter_object_name(object_name) when object_name in @plural_objects_types,
+  defp maybe_alter_object_name(object_name) when object_name in @plural_standard_objects_types,
     do: object_name
 
   defp maybe_alter_object_name(object_name), do: "p_#{object_name}"
 
-  defp maybe_add_standard_object_details_to_custom_event(event) do
-    case Map.get(event, "primaryObjectId") do
-      nil ->
-        event
+  defp eventable?(_object_name, :custom_object), do: true
 
-      object_id ->
-        case Map.get(@primary_standard_objects_ids, object_id) do
-          nil ->
-            event
+  defp eventable?(object_name, :standard_object)
+       when object_name in @eventable_standard_objects_types,
+       do: true
 
-          object_name ->
-            event
-            |> Map.put(
-              "related_object_fully_qualified_name",
-              String.capitalize(@standard_objects_types_map[String.to_atom(object_name)])
-            )
-            |> Map.put("related_object_name", String.capitalize(object_name))
-            |> Map.put("related_object_primary_object_id", object_id)
-            |> Map.put("related_object_singular_name", object_name)
-            |> Map.put(
-              "related_object_plural_name",
-              @standard_objects_types_map[String.to_atom(object_name)]
-            )
-            |> Map.put("is_related_standard_object", true)
-            |> Map.put("is_related_custom_object", false)
-        end
-    end
-  end
-
-  defp maybe_add_custom_object_details_to_custom_event(event, objects_ids_names_mapping) do
-    case Map.get(objects_ids_names_mapping, event["primaryObjectId"]) do
-      nil ->
-        event
-
-      mapped_object_name when is_map(mapped_object_name) ->
-        event
-        |> Map.put(
-          "related_object_fully_qualified_name",
-          String.capitalize(mapped_object_name["fully_qualified_name"])
-        )
-        |> Map.put("related_object_name", mapped_object_name["plural_name"])
-        |> Map.put(
-          "related_object_primary_object_id",
-          mapped_object_name["object_primary_object_id"]
-        )
-        |> Map.put("related_object_singular_name", mapped_object_name["singular_name"])
-        |> Map.put("is_related_standard_object", mapped_object_name["is_standard_object"])
-        |> Map.put("is_related_custom_object", mapped_object_name["is_custom_object"])
-    end
-  end
-
-  defp maybe_fetch_related_object_details(client_code, refresh_token, opts) do
-    case Keyword.get(opts, :custom_event_names_mapping) do
-      custom_event_names_mapping
-      when is_map(custom_event_names_mapping) and map_size(custom_event_names_mapping) > 0 ->
-        custom_event_names_mapping
-
-      _ ->
-        fetch_related_object_details(client_code, refresh_token)
-    end
-  end
-
-  defp fetch_related_object_details(client_code, refresh_token) do
-    case discovery_custom_objects(client_code, refresh_token) do
-      {:ok, %{status: 200, body: %{"results" => custom_objects} = _body}} ->
-        custom_objects
-        |> Enum.reduce(%{}, fn object, acc ->
-          Map.put(acc, object["objectTypeId"], %{
-            "fully_qualified_name" => object["fullyQualifiedName"],
-            "plural_name" => object["labels"]["plural"],
-            "singular_name" => object["labels"]["singular"],
-            "is_standard_object" => false,
-            "is_custom_object" => true
-          })
-        end)
-
-      _error ->
-        %{}
-    end
-  end
-
-  defp to_custom_event(event) do
-    %{
-      id: event["id"],
-      description: event["description"],
-      fully_qualified_name: event["fullyQualifiedName"],
-      is_related_custom_object: event["is_related_custom_object"],
-      is_related_standard_object: event["is_related_standard_object"],
-      labels: event["labels"],
-      name: event["name"],
-      object_type_id: event["objectTypeId"],
-      primary_object: event["primaryObject"],
-      primary_object_id: event["primaryObjectId"],
-      properties: event["properties"],
-      related_object_fully_qualified_name: event["related_object_fully_qualified_name"],
-      related_object_name: event["related_object_name"],
-      related_object_primary_object_id: event["related_object_primary_object_id"],
-      related_object_singular_name: event["related_object_singular_name"],
-      tracking_type: event["trackingType"]
-    }
-  end
+  defp eventable?(_object_name, :standard_object), do: false
 end
