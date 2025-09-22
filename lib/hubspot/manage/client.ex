@@ -588,7 +588,7 @@ defmodule Hubspot.Manage.Client do
          {:ok, %{status: status, body: body}} <-
            API.request(
              :get,
-             "crm/v3/schemas/#{maybe_alter_object_name(object_name)}",
+             "crm/v3/schemas/#{object_name}",
              nil,
              [
                {"Content-type", "application/json"},
@@ -659,11 +659,6 @@ defmodule Hubspot.Manage.Client do
       is_custom_property: property["hubspotDefined"] || false,
       type: property["type"]
     }
-
-  defp maybe_alter_object_name(object_name) when object_name in @plural_standard_objects_types,
-    do: object_name
-
-  defp maybe_alter_object_name(object_name), do: "p_#{object_name}"
 
   defp eventable?(_object_name, :custom_object), do: true
 
