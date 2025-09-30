@@ -250,7 +250,8 @@ defmodule Hubspot.Manage.Client do
           String.t(),
           :object_id | :email,
           String.t(),
-          map(),
+          DateTime.t(),
+          map() | list(),
           String.t()
         ) ::
           {:ok, map()} | {:error, map()}
@@ -259,9 +260,11 @@ defmodule Hubspot.Manage.Client do
         refresh_token,
         :object_id,
         custom_event_name,
-        params,
+        occurred_at,
+        properties,
         object_id
-      ) do
+      )
+      when is_map(properties) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
@@ -272,17 +275,49 @@ defmodule Hubspot.Manage.Client do
           Jason.encode!(%{
             eventName: custom_event_name,
             objectId: object_id,
-            occurredAt: Map.get(params, "occurred_at", DateTime.now!("Etc/UTC")),
-            properties: %{
-              event_type: Map.get(params, "event_type", ""),
-              event_id: Map.get(params, "event_id", ""),
-              event_name: Map.get(params, "event_name", ""),
-              event_title: Map.get(params, "event_title", ""),
-              event_platform: Map.get(params, "event_platform", ""),
-              hostname: Map.get(params, "hostname", ""),
-              pathname: Map.get(params, "pathname", "")
-            }
+            occurredAt: occurred_at,
+            properties: properties
           }),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def send_custom_event(
+        client_code,
+        refresh_token,
+        :object_id,
+        custom_event_name,
+        occurred_at,
+        properties,
+        object_id
+      )
+      when is_list(properties) do
+    events = %{
+      inputs:
+        Enum.map(properties, fn property ->
+          property
+          |> Map.put(:eventName, custom_event_name)
+          |> Map.put(:objectId, object_id)
+          |> Map.put(:occurredAt, occurred_at)
+        end)
+    }
+
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/send/batch",
+          Jason.encode!(events),
           [
             {"Content-type", "application/json"},
             {"authorization", "Bearer #{token}"},
