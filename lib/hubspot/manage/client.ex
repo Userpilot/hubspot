@@ -691,7 +691,12 @@ defmodule Hubspot.Manage.Client do
     do: %{
       id: property["name"],
       title: property["label"],
-      is_custom_property: property["hubspotDefined"] || false,
+      is_custom_property:
+        if property["hubspotDefined"] do
+          false
+        else
+          true
+        end,
       type: property["type"]
     }
 
