@@ -125,9 +125,6 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  def list_custom_properties(_client_code, _refresh_token, _object_type),
-    do: {:error, "only :contact or :company objects are supported"}
-
   @doc """
   Get client info
   """
