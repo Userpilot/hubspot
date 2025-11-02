@@ -74,8 +74,7 @@ defmodule Hubspot.Manage.Client do
   """
   @spec get_custom_property_metadata(String.t(), String.t(), standard_objects, String.t()) ::
           {:ok, map()} | {:error, map()}
-  def get_custom_property_metadata(client_code, refresh_token, object_type, property_name)
-      when object_type in @standard_objects_types do
+  def get_custom_property_metadata(client_code, refresh_token, object_type, property_name) do
     with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
          {:ok, %{status: status, body: body}} <-
            API.request(
@@ -103,8 +102,7 @@ defmodule Hubspot.Manage.Client do
   """
   @spec list_custom_properties(String.t(), String.t(), standard_objects) ::
           {:ok, list()} | {:error, map()}
-  def list_custom_properties(client_code, refresh_token, object_type)
-      when object_type in @standard_objects_types do
+  def list_custom_properties(client_code, refresh_token, object_type) do
     with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
          {:ok, %{status: status, body: body}} <-
            API.request(
@@ -385,6 +383,35 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
+  @spec get_object_by_email(String.t(), String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, map()}
+  def get_object_by_email(
+        client_code,
+        refresh_token,
+        object_qualified_name,
+        email,
+        properties \\ []
+      ) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :get,
+          "crm/v3/objects/#{object_qualified_name}/#{String.trim(email)}?idProperty=email&properties=#{to_properties_string(properties)}",
+          nil,
+          [
+            {"content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
   @doc """
   get object(:contact,:company) by id
   """
@@ -439,8 +466,7 @@ defmodule Hubspot.Manage.Client do
         property_name,
         property_values,
         limit \\ 10
-      )
-      when object_type in @standard_objects_types do
+      ) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
@@ -505,8 +531,7 @@ defmodule Hubspot.Manage.Client do
         property_name,
         property_value,
         properties \\ []
-      )
-      when object_type in @standard_objects_types do
+      ) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
