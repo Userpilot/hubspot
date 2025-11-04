@@ -423,7 +423,7 @@ defmodule Hubspot.Manage.Client do
 
         API.request(
           :get,
-          "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}?#{query_params}",
+          "crm/v3/objects/#{object_type}/#{object_id}?#{query_params}",
           nil,
           [
             {"Content-type", "application/json"},
@@ -654,6 +654,31 @@ defmodule Hubspot.Manage.Client do
              ]
            ) do
       {:ok, %{status: status, body: Enum.map(body["properties"], &to_property/1)}}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
+  @spec search_objects(String.t(), String.t(), String.t(), map()) ::
+          {:ok, map()} | {:error, map()}
+  def search_objects(client_code, refresh_token, object_type, request_body) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{body: body}} <-
+           API.request(
+             :post,
+             "crm/v3/objects/#{object_type}/search",
+             Jason.encode!(request_body),
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, body}
     else
       {:not_found, reason} ->
         {:error, reason}
