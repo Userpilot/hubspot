@@ -380,7 +380,7 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  @spec get_object_by_email(String.t(), String.t(), String.t(), String.t(), String.t()) ::
+  @spec get_object_by_email(String.t(), String.t(), String.t(), String.t(), list()) ::
           {:ok, map()} | {:error, map()}
   def get_object_by_email(
         client_code,
