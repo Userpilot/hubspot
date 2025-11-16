@@ -16,7 +16,7 @@ defmodule Hubspot.Manage.PrivateClient do
            ]
          ) do
       {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:not_found, reason} -> {:error, reason}
+      {:error, %{status: 404}} -> {:error, :not_found}
       error -> error
     end
   end
