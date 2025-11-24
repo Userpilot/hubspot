@@ -1,6 +1,6 @@
 defmodule Hubspot.Manage.PrivateClient do
   alias Hubspot.Common.API
-  @object_prefix "p4160154_"
+  @object_prefix "p4160154"
 
   def request(access_token, post_type, object_type, object, opts \\ [])
 
@@ -99,7 +99,10 @@ defmodule Hubspot.Manage.PrivateClient do
   # ------------------------------------------------------------
   # Object Type Mapping
   # ------------------------------------------------------------
-  defp to_object_type(type) , do: "#{@object_prefix}#{to_string(type)}s"
+  defp to_object_type(:user), do: "#{@object_prefix}_users"
+  defp to_object_type(:organization), do: "#{@object_prefix}_organizations"
+  defp to_object_type(:application), do: "#{@object_prefix}_applications"
+
   defp id_property(:organization), do: "id"
   defp id_property(:application), do: "application_id"
   defp id_property(:user), do: "email"
