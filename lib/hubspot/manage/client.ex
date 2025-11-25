@@ -688,6 +688,29 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
+  @spec update_objects(String.t(), String.t(), String.t(), list()) ::
+          {:ok, map()} | {:error, map()}
+  def update_objects(client_code, refresh_token, object_type, inputs)
+      when is_list(inputs) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         request_body <- Map.new() |> Map.put("inputs", inputs),
+         {:ok, encoded_request_body} <-
+           Jason.encode(request_body),
+         {:ok, %{body: response_body}} <-
+           API.request(
+             :post,
+             "crm/v3/objects/#{object_type}/batch/update",
+             encoded_request_body,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, response_body}
+    end
+  end
+
   defp get_standard_objects(),
     do: Enum.map(@standard_objects_types, &to_object(&1, :standard_object))
 
