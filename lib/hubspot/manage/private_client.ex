@@ -1,107 +1,81 @@
 defmodule Hubspot.Manage.PrivateClient do
   alias Hubspot.Common.API
-  @object_prefix "p4160154"
+
+  @valid_types [:user, :organization, :application]
+  @json_headers [
+    {"content-type", "application/json"},
+    {"accept", "application/json"}
+  ]
 
   def request(access_token, post_type, object_type, object, opts \\ [])
 
   def request(access_token, post_type, object_type, %{inputs: _objects} = payload, opts)
-      when object_type in [:user, :organization, :application] do
-    case API.request(
-           :post,
-           "crm/v3/objects/#{to_object_type(object_type)}/batch/#{post_type}",
-           Jason.encode!(payload),
-           [
-             {"Content-type", "application/json"},
-             {"authorization", "Bearer #{access_token}"},
-             {"accept", "application/json"}
-           ]
-         ) do
-      {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:error, %{status: 404}} -> {:error, :not_found}
-      error -> error
-    end
+      when object_type in @valid_types do
+    custom_object = custom_object(object_type, opts[:object_prefix])
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+    body = Jason.encode!(payload)
+    url = "crm/v3/objects/#{custom_object}/batch/#{post_type}"
+
+    send_request(:post, url, body, headers)
   end
 
   def request(access_token, method, :association, %{inputs: _objects} = payload, opts) do
-    case API.request(
-           :post,
-           "/crm/v3/associations/#{to_object_type(opts[:from_type])}/#{to_object_type(opts[:to_type])}/batch/#{method}",
-           Jason.encode!(payload),
-           [
-             {"authorization", "Bearer #{access_token}"},
-             {"accept", "application/json"},
-             {"Content-Type", "application/json"}
-           ]
-         ) do
-      {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:error, %{status: 404}} -> {:error, :not_found}
-      error -> error
-    end
+    from_object = custom_object(opts[:from_type], opts[:object_prefix])
+    to_object = custom_object(opts[:to_type], opts[:object_prefix])
+    url = "/crm/v3/associations/#{from_object}/#{to_object}/batch/#{method}"
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+    body = Jason.encode!(payload)
+
+    send_request(:post, url, body, headers)
   end
 
   def request(access_token, :get, object_type, object, opts)
-      when object_type in [:user, :organization, :application] do
-    case API.request(
-           :get,
-           "crm/v3/objects/#{to_object_type(object_type)}/#{object.id}?idProperty=#{id_property(object_type)}",
-           nil,
-           [
-             {"authorization", "Bearer #{access_token}"},
-             {"accept", "application/json"},
-             {"Content-Type", "application/json"}
-           ]
-         ) do
-      {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:error, %{status: 404}} -> {:error, :not_found}
-      error -> error
-    end
+      when object_type in @valid_types do
+    custom_object = custom_object(object_type, opts[:object_prefix])
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+    url = "crm/v3/objects/#{custom_object}/#{object.id}?idProperty=#{id_property(object_type)}"
+
+    send_request(:get, url, nil, headers)
   end
 
   def request(access_token, :create, object_type, object, opts)
-      when object_type in [:user, :organization, :application] do
-    case API.request(
-           :post,
-           "crm/v3/objects/#{to_object_type(object_type)}",
-           Jason.encode!(object),
-           [
-             {"authorization", "Bearer #{access_token}"},
-             {"accept", "application/json"},
-             {"Content-Type", "application/json"}
-           ]
-         ) do
-      {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:error, %{status: 404}} -> {:error, :not_found}
-      error -> error
-    end
+      when object_type in @valid_types do
+    custom_object = custom_object(object_type, opts[:object_prefix])
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+    url = "crm/v3/objects/#{custom_object}"
+    body = Jason.encode!(object)
+
+    send_request(:post, url, body, headers)
   end
 
   def request(access_token, :update, object_type, object, opts)
-      when object_type in [:user, :organization, :application] do
-    case API.request(
-           :patch,
-           "crm/v3/objects/#{to_object_type(object_type)}/#{object.id}?idProperty=#{id_property(object_type)}",
-           Jason.encode!(object),
-           [
-             {"authorization", "Bearer #{access_token}"},
-             {"accept", "application/json"},
-             {"Content-Type", "application/json"}
-           ]
-         ) do
-      {:ok, %{status: status, body: body}} -> {:ok, body}
-      {:error, %{status: 404}} -> {:error, :not_found}
-      error -> error
-    end
+      when object_type in @valid_types do
+    custom_object = custom_object(object_type, opts[:object_prefix])
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+    url = "crm/v3/objects/#{custom_object}/#{object.id}?idProperty=#{id_property(object_type)}"
+    body = Jason.encode!(object)
+
+    send_request(:patch, url, body, headers)
   end
 
   def request(_client_code, _access_token, object_type, _objects, _opts),
     do: {:error, "unsupported object_type #{inspect(object_type)}"}
 
+  defp send_request(method, url, body, headers) do
+    case API.request(method, url, body, headers) do
+      {:ok, %{status: _status, body: body}} -> {:ok, body}
+      {:error, %{status: 404}} -> {:error, :not_found}
+      error -> error
+    end
+  end
+
   # ------------------------------------------------------------
   # Object Type Mapping
   # ------------------------------------------------------------
-  defp to_object_type(:user), do: "#{@object_prefix}_users"
-  defp to_object_type(:organization), do: "#{@object_prefix}_organizations"
-  defp to_object_type(:application), do: "#{@object_prefix}_applications"
+
+  defp custom_object(:user, object_prefix), do: "#{object_prefix}_users"
+  defp custom_object(:organization, object_prefix), do: "#{object_prefix}_organizations"
+  defp custom_object(:application, object_prefix), do: "#{object_prefix}_applications"
 
   defp id_property(:organization), do: "id"
   defp id_property(:application), do: "application_id"
