@@ -32,15 +32,14 @@ defmodule Hubspot.Auth.Manage.Token do
 
       case generate_new_access_token(refresh_token) do
         {:ok, %{"access_token" => access_token, "scopes" => scopes}} ->
-          Cachex.put(:hubspot_cache, client_code <> "_scopes", scopes)
-          {:commit, access_token}
+          Cachex.put(:hubspot_cache, client_code <> "_scopes", scopes, ttl: @ttl)
+          {:commit, access_token, expire: @ttl}
 
         error ->
           {:ignore,
            "Failed to generate an access token for Hubspot OAuth management API for client with code #{client_code} with error #{inspect(error)}"}
       end
     end)
-    |> maybe_set_cache(client_code)
     |> normalize_cache_fetch()
   end
 
@@ -82,20 +81,6 @@ defmodule Hubspot.Auth.Manage.Token do
     )
     |> normalize_api_response()
   end
-
-  # `Cachex.fetch/4` doesn't allow for setting TTL
-  # in case of commit though we want to set TTL
-  # so in commit case we set TTL on the key
-  #
-  # https://github.com/whitfin/cachex/issues/195
-  #
-  defp maybe_set_cache({:commit, _} = response, client_code) do
-    Cachex.expire(:hubspot_cache, client_code, @ttl)
-    Cachex.expire(:hubspot_cache, client_code <> "_scopes", @ttl)
-    response
-  end
-
-  defp maybe_set_cache(response, _), do: response
 
   defp normalize_cache_fetch(response) do
     case response do
