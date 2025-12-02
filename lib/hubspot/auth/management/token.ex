@@ -11,14 +11,13 @@ defmodule Hubspot.Auth.Manage.Token do
     Cachex.fetch(:hubspot_cache, client_code <> "_scopes", fn _key ->
       case generate_new_access_token(refresh_token) do
         {:ok, %{"scopes" => scopes}} ->
-          {:commit, scopes}
+          {:commit, scopes, expire: @ttl}
 
         error ->
           {:ignore,
            "Failed to generate an access token for Hubspot OAuth management API for client with code #{client_code} with error #{inspect(error)}"}
       end
     end)
-    |> maybe_set_cache(client_code)
     |> normalize_cache_fetch()
   end
 
