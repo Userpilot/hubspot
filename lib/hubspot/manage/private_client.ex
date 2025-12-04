@@ -29,11 +29,29 @@ defmodule Hubspot.Manage.PrivateClient do
     send_request(:post, url, body, headers)
   end
 
-  def request(access_token, :get, object_type, object, opts)
+  def request(
+        access_token,
+        :create,
+        :association,
+        %{from_id: from_id, to_id: to_id, association_type: association_type},
+        opts
+      ) do
+    from_object = custom_object(opts[:from_type], opts[:object_prefix])
+    to_object = custom_object(opts[:to_type], opts[:object_prefix])
+
+    url =
+      "/crm/v3/objects/#{from_object}/#{from_id}/associations/#{to_object}/#{to_id}/#{association_type}"
+
+    headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
+
+    send_request(:post, url, "", headers)
+  end
+
+  def request(access_token, :get, object_type, %{id: id}, opts)
       when object_type in @valid_types do
     custom_object = custom_object(object_type, opts[:object_prefix])
     headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
-    url = "crm/v3/objects/#{custom_object}/#{object.id}?idProperty=#{id_property(object_type)}"
+    url = "crm/v3/objects/#{custom_object}/#{id}?idProperty=#{id_property(object_type)}"
 
     send_request(:get, url, nil, headers)
   end
@@ -58,8 +76,10 @@ defmodule Hubspot.Manage.PrivateClient do
     send_request(:patch, url, body, headers)
   end
 
-  def request(_client_code, _access_token, object_type, _objects, _opts),
-    do: {:error, "unsupported object_type #{inspect(object_type)}"}
+  def request(_access_token, method, object_type, _object, _opts),
+    do:
+      {:error,
+       "unsupported request method #{inspect(method)}, object_type #{inspect(object_type)}"}
 
   defp send_request(method, url, body, headers) do
     case API.request(method, url, body, headers) do
