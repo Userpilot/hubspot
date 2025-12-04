@@ -44,7 +44,7 @@ defmodule Hubspot.Manage.PrivateClient do
 
     headers = [{"authorization", "Bearer " <> access_token} | @json_headers]
 
-    send_request(:post, url, "", headers)
+    send_request(:put, url, "", headers)
   end
 
   def request(access_token, :get, object_type, %{id: id}, opts)
