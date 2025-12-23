@@ -4,7 +4,8 @@ defmodule Hubspot.Auth.Manage.Token do
 
   use Hubspot.Common.Config
 
-  @ttl :timer.seconds(1_800)
+  # Set TTL to 25 minutes
+  @ttl :timer.seconds(1_500)
 
   @spec get_client_scopes(any, any) :: {:not_found, any} | {:ok, any} | {:commit, any}
   def get_client_scopes(client_code, refresh_token) do
