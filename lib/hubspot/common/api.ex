@@ -66,6 +66,10 @@ defmodule Hubspot.Common.API do
     do: {:error, %{status: nil, body: "#{reason}: #{Exception.message(error)}", headers: nil}}
 
   defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response)
+       when status >= 200 and status < 300 and body == "",
+       do: {:ok, %{status: status, body: body, headers: headers}}
+
+  defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response)
        when status >= 200 and status < 300,
        do: {:ok, %{status: status, body: Jason.decode!(body), headers: headers}}
 

@@ -7,13 +7,74 @@ defmodule Hubspot.Manage.Client do
   alias Hubspot.Common.API
   alias Hubspot.Auth.Manage.Token
 
+  @custom_events_write_scope "behavioral_events.event_definitions.read_write"
+
+  @primary_standard_objects_ids %{
+    "0-1" => "contact",
+    "0-2" => "company",
+    "0-3" => "deal",
+    "0-5" => "ticket",
+    "0-162" => "service",
+    "0-53" => "invoice",
+    "0-7" => "product",
+    "0-14" => "quote",
+    "0-69" => "subscription",
+    "0-123" => "order",
+    "0-142" => "cart"
+  }
+
+  @primary_standard_objects_ids_map @primary_standard_objects_ids
+                                    |> Enum.map(fn {k, v} -> {v, k} end)
+                                    |> Enum.into(%{})
+
+  # This needs to build an API function working with standard object and custom object ones
+  @standard_objects_types @primary_standard_objects_ids
+                          |> Enum.map(fn {_k, v} -> String.to_existing_atom(v) end)
+                          |> Enum.into([])
+
+  @eventable_standard_objects_types [
+    "contacts",
+    "companies",
+    "deals",
+    "tickets"
+  ]
+
+  @plural_standard_objects_types [
+    "contacts",
+    "companies",
+    "deals",
+    "tickets",
+    "services",
+    "invoices",
+    "products",
+    "quotes",
+    "subscriptions",
+    "orders",
+    "carts"
+  ]
+
+  @standard_objects_types_map %{
+    contact: "contacts",
+    company: "companies",
+    deal: "deals",
+    ticket: "tickets",
+    service: "services",
+    invoice: "invoices",
+    product: "products",
+    quote: "quotes",
+    subscription: "subscriptions",
+    order: "orders",
+    cart: "carts"
+  }
+
+  @type standard_objects :: unquote(Enum.reduce(@standard_objects_types, &{:|, [], [&1, &2]}))
+
   @doc """
   To get from Hubspot side the metadata information about some property, like the fieldType, etc ..
   """
-  @spec get_custom_property_metadata(String.t(), String.t(), :contact | :company, String.t()) ::
+  @spec get_custom_property_metadata(String.t(), String.t(), standard_objects, String.t()) ::
           {:ok, map()} | {:error, map()}
-  def get_custom_property_metadata(client_code, refresh_token, object_type, property_name)
-      when object_type in [:contact, :company] do
+  def get_custom_property_metadata(client_code, refresh_token, object_type, property_name) do
     with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
          {:ok, %{status: status, body: body}} <-
            API.request(
@@ -39,10 +100,9 @@ defmodule Hubspot.Manage.Client do
   @doc """
   list all client's object(contact, company) properties
   """
-  @spec list_custom_properties(String.t(), String.t(), :contact | :company) ::
+  @spec list_custom_properties(String.t(), String.t(), standard_objects) ::
           {:ok, list()} | {:error, map()}
-  def list_custom_properties(client_code, refresh_token, object_type)
-      when object_type in [:contact, :company] do
+  def list_custom_properties(client_code, refresh_token, object_type) do
     with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
          {:ok, %{status: status, body: body}} <-
            API.request(
@@ -64,9 +124,6 @@ defmodule Hubspot.Manage.Client do
         error
     end
   end
-
-  def list_custom_properties(_client_code, _refresh_token, _object_type),
-    do: {:error, "only :contact or :company objects are supported"}
 
   @doc """
   Get client info
@@ -149,14 +206,153 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  defp to_property(property),
-    do: %{
-      id: property["name"],
-      title: property["label"],
-      hubspot_defined: property["hubspotDefined"],
-      fieldType: property["fieldType"],
-      type: property["type"]
+  @spec allowed_to_use_custom_events?(String.t(), String.t()) ::
+          {:ok, boolean()} | {:error, map()}
+  def allowed_to_use_custom_events?(client_code, refresh_token) do
+    client_code
+    |> Token.get_client_scopes(refresh_token)
+    |> case do
+      {:ok, scope} ->
+        if @custom_events_write_scope in scope do
+          {:ok, true}
+        else
+          {:ok, false}
+        end
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec get_custom_event(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, map()}
+  def get_custom_event(client_code, refresh_token, custom_event_name) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(:get, "/events/v3/event-definitions/#{custom_event_name}", nil, [
+          {"authorization", "Bearer #{token}"},
+          {"accept", "application/json"}
+        ])
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec send_custom_event(
+          String.t(),
+          String.t(),
+          :object_id | :email,
+          String.t(),
+          DateTime.t(),
+          map() | list(),
+          String.t()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def send_custom_event(
+        client_code,
+        refresh_token,
+        :object_id,
+        custom_event_name,
+        occurred_at,
+        properties,
+        object_id
+      )
+      when is_map(properties) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/send",
+          Jason.encode!(%{
+            eventName: custom_event_name,
+            objectId: object_id,
+            occurredAt: occurred_at,
+            properties: properties
+          }),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def send_custom_event(
+        client_code,
+        refresh_token,
+        :object_id,
+        custom_event_name,
+        occurred_at,
+        properties,
+        object_id
+      )
+      when is_list(properties) do
+    events = %{
+      inputs:
+        Enum.map(properties, fn property ->
+          property
+          |> Map.put(:eventName, custom_event_name)
+          |> Map.put(:objectId, object_id)
+          |> Map.put(:occurredAt, occurred_at)
+        end)
     }
+
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/send/batch",
+          Jason.encode!(events),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec define_custom_event(String.t(), String.t(), map()) :: {:ok, map()} | {:error, map()}
+  def define_custom_event(client_code, refresh_token, event_body) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :post,
+          "/events/v3/event-definitions",
+          Jason.encode!(%{
+            label: event_body[:label],
+            name: event_body[:name],
+            description: event_body[:description],
+            primaryObject: event_body[:primary_object],
+            includeDefaultProperties: event_body[:include_default_properties] || true,
+            propertyDefinitions: event_body[:property_definitions]
+          }),
+          [
+            {"Content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
 
   @doc """
   list all client's object(contact, company) properties
@@ -184,6 +380,35 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
+  @spec get_object_by_email(String.t(), String.t(), String.t(), String.t(), list()) ::
+          {:ok, map()} | {:error, map()}
+  def get_object_by_email(
+        client_code,
+        refresh_token,
+        object_qualified_name,
+        email,
+        properties \\ []
+      ) do
+    client_code
+    |> Token.get_client_access_token(refresh_token)
+    |> case do
+      {:ok, token} ->
+        API.request(
+          :get,
+          "crm/v3/objects/#{object_qualified_name}/#{String.trim(email)}?idProperty=email&properties=#{to_properties_string(properties)}",
+          nil,
+          [
+            {"content-type", "application/json"},
+            {"authorization", "Bearer #{token}"},
+            {"accept", "application/json"}
+          ]
+        )
+
+      {:not_found, reason} ->
+        {:error, reason}
+    end
+  end
+
   @doc """
   get object(:contact,:company) by id
   """
@@ -198,7 +423,7 @@ defmodule Hubspot.Manage.Client do
 
         API.request(
           :get,
-          "crm/v3/objects/#{to_object_type(object_type)}/#{object_id}?#{query_params}",
+          "crm/v3/objects/#{object_type}/#{object_id}?#{query_params}",
           nil,
           [
             {"Content-type", "application/json"},
@@ -221,7 +446,7 @@ defmodule Hubspot.Manage.Client do
   @spec get_objects_by_property_values(
           String.t(),
           String.t(),
-          :contact | :company,
+          standard_objects,
           String.t(),
           list(),
           String.t(),
@@ -238,8 +463,7 @@ defmodule Hubspot.Manage.Client do
         property_name,
         property_values,
         limit \\ 10
-      )
-      when object_type in [:contact, :company] do
+      ) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
@@ -292,7 +516,7 @@ defmodule Hubspot.Manage.Client do
   @spec get_object_by_property(
           String.t(),
           String.t(),
-          :contact | :company,
+          standard_objects,
           String.t(),
           String.t()
         ) ::
@@ -304,8 +528,7 @@ defmodule Hubspot.Manage.Client do
         property_name,
         property_value,
         properties \\ []
-      )
-      when object_type in [:contact, :company] do
+      ) do
     client_code
     |> Token.get_client_access_token(refresh_token)
     |> case do
@@ -350,14 +573,14 @@ defmodule Hubspot.Manage.Client do
   @spec list_objects(
           String.t(),
           String.t(),
-          :contact | :company,
+          standard_objects,
           String.t(),
           String.t() | nil,
           list()
         ) ::
           {:ok, map()} | {:error, map()}
   def list_objects(client_code, refresh_token, object_type, page_size, after_token, properties)
-      when object_type in [:contact, :company] do
+      when object_type in @standard_objects_types do
     query_params =
       to_query_params_string(
         limit: page_size,
@@ -387,8 +610,144 @@ defmodule Hubspot.Manage.Client do
     end
   end
 
-  defp to_object_type(:contact), do: "contacts"
-  defp to_object_type(:company), do: "companies"
+  @spec discovery_objects(String.t(), String.t()) :: {:ok, map()} | {:error, map()}
+  def discovery_objects(client_code, refresh_token) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{status: status, body: body}} <-
+           API.request(
+             :get,
+             "crm/v3/schemas",
+             nil,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok,
+       %{
+         status: status,
+         body: Enum.map(body["results"], &to_object(&1, :custom_object)) ++ get_standard_objects()
+       }}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
+  @spec get_object_properties(String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, map()}
+  def get_object_properties(client_code, refresh_token, object_name) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{status: status, body: body}} <-
+           API.request(
+             :get,
+             "crm/v3/schemas/#{object_name}",
+             nil,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, %{status: status, body: Enum.map(body["properties"], &to_property/1)}}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
+  @spec search_objects(String.t(), String.t(), String.t(), map()) ::
+          {:ok, map()} | {:error, map()}
+  def search_objects(client_code, refresh_token, object_type, request_body) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         {:ok, %{body: body}} <-
+           API.request(
+             :post,
+             "crm/v3/objects/#{object_type}/search",
+             Jason.encode!(request_body),
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, body}
+    else
+      {:not_found, reason} ->
+        {:error, reason}
+
+      error ->
+        error
+    end
+  end
+
+  @spec update_objects(String.t(), String.t(), String.t(), list()) ::
+          {:ok, map()} | {:error, map()}
+  def update_objects(client_code, refresh_token, object_type, inputs)
+      when is_list(inputs) do
+    with {:ok, token} <- Token.get_client_access_token(client_code, refresh_token),
+         request_body <- Map.new() |> Map.put("inputs", inputs),
+         {:ok, encoded_request_body} <-
+           Jason.encode(request_body),
+         {:ok, %{body: response_body}} <-
+           API.request(
+             :post,
+             "crm/v3/objects/#{object_type}/batch/update",
+             encoded_request_body,
+             [
+               {"Content-type", "application/json"},
+               {"authorization", "Bearer #{token}"},
+               {"accept", "application/json"}
+             ]
+           ) do
+      {:ok, response_body}
+    end
+  end
+
+  defp get_standard_objects(),
+    do: Enum.map(@standard_objects_types, &to_object(&1, :standard_object))
+
+  defp to_object(object, :custom_object) do
+    %{
+      fully_qualified_name: object["fullyQualifiedName"],
+      singular_name: object["labels"]["singular"],
+      plural_name: object["labels"]["plural"],
+      primary_object_id: object["objectTypeId"],
+      is_standard_object: false,
+      is_custom_object: true,
+      requires_custom_events: true,
+      eventable: eventable?(object["labels"]["plural"], :custom_object)
+    }
+  end
+
+  defp to_object(object_name, :standard_object) do
+    %{
+      fully_qualified_name: @standard_objects_types_map[object_name],
+      singular_name: to_string(object_name),
+      plural_name: @standard_objects_types_map[object_name],
+      primary_object_id: @primary_standard_objects_ids_map[to_string(object_name)],
+      is_standard_object: true,
+      is_custom_object: false,
+      requires_custom_events:
+        not Enum.member?(
+          @eventable_standard_objects_types,
+          @standard_objects_types_map[object_name]
+        ),
+      eventable: eventable?(@standard_objects_types_map[object_name], :standard_object)
+    }
+  end
+
+  defp to_object_type(object_type) when object_type in @standard_objects_types,
+    do: to_string(object_type)
+
+  defp to_object_type(object_type), do: raise("Invalid object type: #{inspect(object_type)}")
 
   defp to_properties_string(properties), do: Enum.join(properties, ",")
 
@@ -397,4 +756,25 @@ defmodule Hubspot.Manage.Client do
     |> Enum.reject(fn {_key, val} -> is_nil(val) end)
     |> Enum.map_join("&", fn {key, val} -> "#{key}=#{val}" end)
   end
+
+  defp to_property(property),
+    do: %{
+      id: property["name"],
+      title: property["label"],
+      is_custom_property:
+        if property["hubspotDefined"] do
+          false
+        else
+          true
+        end,
+      type: property["type"]
+    }
+
+  defp eventable?(_object_name, :custom_object), do: true
+
+  defp eventable?(object_name, :standard_object)
+       when object_name in @eventable_standard_objects_types,
+       do: true
+
+  defp eventable?(_object_name, :standard_object), do: false
 end
