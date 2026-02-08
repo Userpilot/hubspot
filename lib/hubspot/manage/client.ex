@@ -687,8 +687,8 @@ defmodule Hubspot.Manage.Client do
     |> Enum.map_join("&", fn {key, val} -> "#{key}=#{val}" end)
   end
 
-  defp to_property(property),
-    do: %{
+  defp to_property(property) do
+    %{
       id: property["name"],
       title: property["label"],
       is_custom_property:
@@ -697,8 +697,12 @@ defmodule Hubspot.Manage.Client do
         else
           true
         end,
-      type: property["type"]
+      type: property["type"],
+      options: property["options"],
+      is_read_only: property["modificationMetadata"]["readOnlyValue"],
+      is_read_only_definition: property["modificationMetadata"]["readOnlyDefinition"]
     }
+  end
 
   defp eventable?(_object_name, :custom_object), do: true
 
