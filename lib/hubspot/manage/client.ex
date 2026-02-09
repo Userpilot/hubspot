@@ -691,16 +691,10 @@ defmodule Hubspot.Manage.Client do
     %{
       id: property["name"],
       title: property["label"],
-      is_custom_property:
-        if property["hubspotDefined"] do
-          false
-        else
-          true
-        end,
+      is_custom_property: not property["hubspotDefined"],
       type: property["type"],
       options: property["options"],
-      is_read_only: property["modificationMetadata"]["readOnlyValue"],
-      is_read_only_definition: property["modificationMetadata"]["readOnlyDefinition"]
+      is_read_only: property["modificationMetadata"]["readOnlyValue"]
     }
   end
 
