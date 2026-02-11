@@ -691,7 +691,7 @@ defmodule Hubspot.Manage.Client do
     %{
       id: property["name"],
       title: property["label"],
-      is_custom_property: not property["hubspotDefined"],
+      is_custom_property: not Map.get(property, "hubspotDefined", false),
       type: property["type"],
       options: property["options"],
       is_read_only: property["modificationMetadata"]["readOnlyValue"]
