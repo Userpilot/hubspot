@@ -3,12 +3,13 @@ defmodule Hubspot.Common.API do
 
   @default_transport_retry_timeout 1_000
   @retry_threshold 3
+  @receive_timeout 6_000
+  @pool_timeout 10_000
 
   require Logger
 
   def request(type, url, body \\ nil, headers \\ [], opts \\ []) do
-    opts = Keyword.merge([receive_timeout: 6_000], opts)
-    opts = Keyword.merge([receive_timeout: 6_000], opts)
+    opts = Keyword.merge([receive_timeout: @receive_timeout, pool_timeout: @pool_timeout], opts)
 
     case :timer.tc(&do_send_request/5, [type, url, body, headers, opts]) do
       {time, {:ok, response}} ->

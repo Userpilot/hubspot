@@ -5,7 +5,8 @@ defmodule Hubspot.Application do
   def start(_type, _args) do
     children = [
       {Cachex, name: :hubspot_cache},
-      {Finch, name: Hubspot.Common.API}
+      {Finch,
+       name: Hubspot.Common.API, pools: %{default: [conn_max_idle_time: :timer.seconds(340)]}}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
