@@ -79,6 +79,9 @@ defmodule Hubspot.Common.API do
        when status == 404,
        do: {:error, %{status: status, body: body, headers: headers}}
 
+  defp decode_response(%Finch.Response{status: status, body: "", headers: headers} = _response),
+    do: {:error, %{status: status, body: "", headers: headers}}
+
   defp decode_response(%Finch.Response{status: status, body: body, headers: headers} = _response),
     do: {:error, %{status: status, body: Jason.decode!(body), headers: headers}}
 end
